@@ -2,10 +2,11 @@
   "profiles": {
     "ClassicUO": {
       "commandName": "Project",
-      "commandLineArgs": "-skiploginscreen "
+      "commandLineArgs": "-skiploginscreen"
     },
     "ClassicUO No SkipLoginScreen": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "-uopath \"D:\\Games\\Electronic Arts\\Ultima Online Classic\""
     }
   }
 }

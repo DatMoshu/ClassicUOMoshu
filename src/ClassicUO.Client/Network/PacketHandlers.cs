@@ -308,6 +308,7 @@ namespace ClassicUO.Network
             Handler.Add(0x85, ReceiveLoginRejection);
             Handler.Add(0x53, ReceiveLoginRejection);
             Handler.Add(0xFD, LoginDelay);
+
         }
 
         public static void SendMegaClilocRequests(World world)
@@ -4106,6 +4107,7 @@ namespace ClassicUO.Network
             {
                 world.OldMusicIndex = 42;
             }
+            GameActions.SetSeason(Game.Managers.Season.Fall);
 
             world.ChangeSeason((Season)season, music);
         }

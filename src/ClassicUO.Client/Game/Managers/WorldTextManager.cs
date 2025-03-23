@@ -111,6 +111,17 @@ namespace ClassicUO.Game.Managers
             dm.Add(dmg);
         }
 
+        internal void AddMessage(uint obj, string message)
+        {
+            if (!_damages.TryGetValue(obj, out OverheadDamage dm) || dm == null)
+            {
+                dm = new OverheadDamage(World, World.Get(obj));
+                _damages[obj] = dm;
+            }
+
+            dm.AddListening(message);
+        }
+
         public override void Clear()
         {
             if (_toRemoveDamages.Count > 0)

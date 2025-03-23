@@ -1,0 +1,2413 @@
+[
+  {
+    "Id": 0,
+    "Name": "ActivateChambers",
+    "Command": "ActivateChambers",
+    "Description": ""
+  },
+  {
+    "Id": 1,
+    "Name": "Add",
+    "Command": "Add",
+    "Description": ""
+  },
+  {
+    "Id": 2,
+    "Name": "AddAtt",
+    "Command": "AddAtt",
+    "Description": ""
+  },
+  {
+    "Id": 3,
+    "Name": "addclone",
+    "Command": "addclone",
+    "Description": ""
+  },
+  {
+    "Id": 4,
+    "Name": "AddController",
+    "Command": "AddController",
+    "Description": ""
+  },
+  {
+    "Id": 5,
+    "Name": "AddDoor",
+    "Command": "AddDoor",
+    "Description": ""
+  },
+  {
+    "Id": 6,
+    "Name": "AddMenu",
+    "Command": "AddMenu",
+    "Description": ""
+  },
+  {
+    "Id": 7,
+    "Name": "AddSign",
+    "Command": "AddSign",
+    "Description": ""
+  },
+  {
+    "Id": 8,
+    "Name": "AddToCont",
+    "Command": "AddToCont",
+    "Description": ""
+  },
+  {
+    "Id": 9,
+    "Name": "AddToPack",
+    "Command": "AddToPack",
+    "Description": ""
+  },
+  {
+    "Id": 10,
+    "Name": "Admin",
+    "Command": "Admin",
+    "Description": ""
+  },
+  {
+    "Id": 11,
+    "Name": "AllSpells",
+    "Command": "AllSpells",
+    "Description": ""
+  },
+  {
+    "Id": 12,
+    "Name": "Animate",
+    "Command": "Animate",
+    "Description": ""
+  },
+  {
+    "Id": 13,
+    "Name": "APN",
+    "Command": "APN",
+    "Description": ""
+  },
+  {
+    "Id": 14,
+    "Name": "Area",
+    "Command": "Area",
+    "Description": ""
+  },
+  {
+    "Id": 15,
+    "Name": "ArenaSetup",
+    "Command": "ArenaSetup",
+    "Description": ""
+  },
+  {
+    "Id": 16,
+    "Name": "ArisenDelete",
+    "Command": "ArisenDelete",
+    "Description": ""
+  },
+  {
+    "Id": 17,
+    "Name": "ArisenGenerate",
+    "Command": "ArisenGenerate",
+    "Description": ""
+  },
+  {
+    "Id": 18,
+    "Name": "AutoPageNotify",
+    "Command": "AutoPageNotify",
+    "Description": ""
+  },
+  {
+    "Id": 19,
+    "Name": "AvailAtt",
+    "Command": "AvailAtt",
+    "Description": ""
+  },
+  {
+    "Id": 20,
+    "Name": "B",
+    "Command": "B",
+    "Description": "",
+    "CommandOverride": "Broadcast"
+  },
+  {
+    "Id": 21,
+    "Name": "BackgroundSave",
+    "Command": "BackgroundSave",
+    "Description": ""
+  },
+  {
+    "Id": 22,
+    "Name": "Ban",
+    "Command": "Ban",
+    "Description": ""
+  },
+  {
+    "Id": 23,
+    "Name": "Bank",
+    "Command": "Bank",
+    "Description": ""
+  },
+  {
+    "Id": 24,
+    "Name": "Batch",
+    "Command": "Batch",
+    "Description": ""
+  },
+  {
+    "Id": 25,
+    "Name": "BattleProps",
+    "Command": "BattleProps",
+    "Description": ""
+  },
+  {
+    "Id": 26,
+    "Name": "BC",
+    "Command": "BC",
+    "Description": ""
+  },
+  {
+    "Id": 27,
+    "Name": "BCast",
+    "Command": "BCast",
+    "Description": ""
+  },
+  {
+    "Id": 28,
+    "Name": "BGSave",
+    "Command": "BGSave",
+    "Description": ""
+  },
+  {
+    "Id": 29,
+    "Name": "BringToPack",
+    "Command": "BringToPack",
+    "Description": ""
+  },
+  {
+    "Id": 30,
+    "Name": "CalculationsLetter",
+    "Command": "CalculationsLetter",
+    "Description": ""
+  },
+  {
+    "Id": 31,
+    "Name": "CaptainsLogLetter",
+    "Command": "CaptainsLogLetter",
+    "Description": ""
+  },
+  {
+    "Id": 32,
+    "Name": "Cast",
+    "Command": "Cast",
+    "Description": ""
+  },
+  {
+    "Id": 33,
+    "Name": "ChainLink",
+    "Command": "ChainLink",
+    "Description": ""
+  },
+  {
+    "Id": 34,
+    "Name": "ChampHuthwait",
+    "Command": "ChampHuthwait",
+    "Description": ""
+  },
+  {
+    "Id": 35,
+    "Name": "ChampHuthwaitComplete",
+    "Command": "ChampHuthwaitComplete",
+    "Description": ""
+  },
+  {
+    "Id": 36,
+    "Name": "ChampionInfo",
+    "Command": "ChampionInfo",
+    "Description": ""
+  },
+  {
+    "Id": 37,
+    "Name": "CharydbisSpawner",
+    "Command": "CharydbisSpawner",
+    "Description": ""
+  },
+  {
+    "Id": 38,
+    "Name": "CheckAccountGold",
+    "Command": "CheckAccountGold",
+    "Description": ""
+  },
+  {
+    "Id": 39,
+    "Name": "CheckFillables",
+    "Command": "CheckFillables",
+    "Description": ""
+  },
+  {
+    "Id": 40,
+    "Name": "CheckGuarded",
+    "Command": "CheckGuarded",
+    "Description": ""
+  },
+  {
+    "Id": 41,
+    "Name": "CheckPoints",
+    "Command": "CheckPoints",
+    "Description": ""
+  },
+  {
+    "Id": 42,
+    "Name": "ClearFacet",
+    "Command": "ClearFacet",
+    "Description": ""
+  },
+  {
+    "Id": 43,
+    "Name": "Client",
+    "Command": "Client",
+    "Description": ""
+  },
+  {
+    "Id": 44,
+    "Name": "CompleteAllRooms",
+    "Command": "CompleteAllRooms",
+    "Description": ""
+  },
+  {
+    "Id": 45,
+    "Name": "Condition",
+    "Command": "Condition",
+    "Description": ""
+  },
+  {
+    "Id": 46,
+    "Name": "Contained",
+    "Command": "Contained",
+    "Description": ""
+  },
+  {
+    "Id": 47,
+    "Name": "ConvertCurrency",
+    "Command": "ConvertCurrency",
+    "Description": ""
+  },
+  {
+    "Id": 48,
+    "Name": "ConvertSpawners",
+    "Command": "ConvertSpawners",
+    "Description": ""
+  },
+  {
+    "Id": 49,
+    "Name": "CountObjects",
+    "Command": "CountObjects",
+    "Description": ""
+  },
+  {
+    "Id": 50,
+    "Name": "CousteauPerron",
+    "Command": "CousteauPerron",
+    "Description": ""
+  },
+  {
+    "Id": 51,
+    "Name": "CousteauPerronComplete",
+    "Command": "CousteauPerronComplete",
+    "Description": ""
+  },
+  {
+    "Id": 52,
+    "Name": "CousteauPerronPlans",
+    "Command": "CousteauPerronPlans",
+    "Description": ""
+  },
+  {
+    "Id": 53,
+    "Name": "CousteauPerronScroll",
+    "Command": "CousteauPerronScroll",
+    "Description": ""
+  },
+  {
+    "Id": 54,
+    "Name": "Createworld",
+    "Command": "Createworld",
+    "Description": ""
+  },
+  {
+    "Id": 55,
+    "Name": "Decorate",
+    "Command": "Decorate",
+    "Description": ""
+  },
+  {
+    "Id": 56,
+    "Name": "DecorateDelete",
+    "Command": "DecorateDelete",
+    "Description": ""
+  },
+  {
+    "Id": 57,
+    "Name": "DecorateHS",
+    "Command": "DecorateHS",
+    "Description": ""
+  },
+  {
+    "Id": 58,
+    "Name": "DecorateMag",
+    "Command": "DecorateMag",
+    "Description": ""
+  },
+  {
+    "Id": 59,
+    "Name": "DecorateML",
+    "Command": "DecorateML",
+    "Description": ""
+  },
+  {
+    "Id": 60,
+    "Name": "DecorateMLDelete",
+    "Command": "DecorateMLDelete",
+    "Description": ""
+  },
+  {
+    "Id": 61,
+    "Name": "DecorateSA",
+    "Command": "DecorateSA",
+    "Description": ""
+  },
+  {
+    "Id": 62,
+    "Name": "DecorateSADelete",
+    "Command": "DecorateSADelete",
+    "Description": ""
+  },
+  {
+    "Id": 63,
+    "Name": "DecorateTOL",
+    "Command": "DecorateTOL",
+    "Description": ""
+  },
+  {
+    "Id": 64,
+    "Name": "DelAllRegionSpawns",
+    "Command": "DelAllRegionSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 65,
+    "Name": "DelAtt",
+    "Command": "DelAtt",
+    "Description": ""
+  },
+  {
+    "Id": 66,
+    "Name": "DelChampSpawns",
+    "Command": "DelChampSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 67,
+    "Name": "Delete",
+    "Command": "Delete",
+    "Description": ""
+  },
+  {
+    "Id": 68,
+    "Name": "DeleteCasino",
+    "Command": "DeleteCasino",
+    "Description": ""
+  },
+  {
+    "Id": 69,
+    "Name": "DeleteCityLoyaltySystem",
+    "Command": "DeleteCityLoyaltySystem",
+    "Description": ""
+  },
+  {
+    "Id": 70,
+    "Name": "DeleteCovetous",
+    "Command": "DeleteCovetous",
+    "Description": ""
+  },
+  {
+    "Id": 71,
+    "Name": "DeleteDespise",
+    "Command": "DeleteDespise",
+    "Description": ""
+  },
+  {
+    "Id": 72,
+    "Name": "DeleteFactions",
+    "Command": "DeleteFactions",
+    "Description": ""
+  },
+  {
+    "Id": 73,
+    "Name": "DeleteGauntlet",
+    "Command": "DeleteGauntlet",
+    "Description": ""
+  },
+  {
+    "Id": 74,
+    "Name": "DeleteHS",
+    "Command": "DeleteHS",
+    "Description": ""
+  },
+  {
+    "Id": 75,
+    "Name": "DeleteKhaldun",
+    "Command": "DeleteKhaldun",
+    "Description": ""
+  },
+  {
+    "Id": 76,
+    "Name": "DeleteLichPuzzle",
+    "Command": "DeleteLichPuzzle",
+    "Description": ""
+  },
+  {
+    "Id": 77,
+    "Name": "DeleteNewMagincia",
+    "Command": "DeleteNewMagincia",
+    "Description": ""
+  },
+  {
+    "Id": 78,
+    "Name": "DeleteShame",
+    "Command": "DeleteShame",
+    "Description": ""
+  },
+  {
+    "Id": 79,
+    "Name": "DeleteWorld",
+    "Command": "DeleteWorld",
+    "Description": ""
+  },
+  {
+    "Id": 80,
+    "Name": "DelExploringTheDeep",
+    "Command": "DelExploringTheDeep",
+    "Description": ""
+  },
+  {
+    "Id": 81,
+    "Name": "DelRegionSpawns",
+    "Command": "DelRegionSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 82,
+    "Name": "DelSorcerersPlate",
+    "Command": "DelSorcerersPlate",
+    "Description": ""
+  },
+  {
+    "Id": 83,
+    "Name": "DelWinchAssembly",
+    "Command": "DelWinchAssembly",
+    "Description": ""
+  },
+  {
+    "Id": 84,
+    "Name": "DesignInsert",
+    "Command": "DesignInsert",
+    "Description": ""
+  },
+  {
+    "Id": 85,
+    "Name": "Dismount",
+    "Command": "Dismount",
+    "Description": ""
+  },
+  {
+    "Id": 86,
+    "Name": "DocGen",
+    "Command": "DocGen",
+    "Description": ""
+  },
+  {
+    "Id": 87,
+    "Name": "DoorGen",
+    "Command": "DoorGen",
+    "Description": ""
+  },
+  {
+    "Id": 88,
+    "Name": "DoorGenDelete",
+    "Command": "DoorGenDelete",
+    "Description": ""
+  },
+  {
+    "Id": 89,
+    "Name": "DropHolding",
+    "Command": "DropHolding",
+    "Description": ""
+  },
+  {
+    "Id": 90,
+    "Name": "DumpTimers",
+    "Command": "DumpTimers",
+    "Description": ""
+  },
+  {
+    "Id": 91,
+    "Name": "Dupe",
+    "Command": "Dupe",
+    "Description": ""
+  },
+  {
+    "Id": 92,
+    "Name": "DupeInBag",
+    "Command": "DupeInBag",
+    "Description": ""
+  },
+  {
+    "Id": 93,
+    "Name": "Echo",
+    "Command": "Echo",
+    "Description": ""
+  },
+  {
+    "Id": 94,
+    "Name": "ElectionStartTime",
+    "Command": "ElectionStartTime",
+    "Description": ""
+  },
+  {
+    "Id": 95,
+    "Name": "EliseTrentScroll",
+    "Command": "EliseTrentScroll",
+    "Description": ""
+  },
+  {
+    "Id": 96,
+    "Name": "ExemptCities",
+    "Command": "ExemptCities",
+    "Description": ""
+  },
+  {
+    "Id": 97,
+    "Name": "ExodusArchZealotGump",
+    "Command": "ExodusArchZealotGump",
+    "Description": ""
+  },
+  {
+    "Id": 98,
+    "Name": "ExportSpawner",
+    "Command": "ExportSpawner",
+    "Description": ""
+  },
+  {
+    "Id": 99,
+    "Name": "ExportWSC",
+    "Command": "ExportWSC",
+    "Description": ""
+  },
+  {
+    "Id": 100,
+    "Name": "Facet",
+    "Command": "Facet",
+    "Description": ""
+  },
+  {
+    "Id": 101,
+    "Name": "FactionBan",
+    "Command": "FactionBan",
+    "Description": ""
+  },
+  {
+    "Id": 102,
+    "Name": "FactionCommander",
+    "Command": "FactionCommander",
+    "Description": ""
+  },
+  {
+    "Id": 103,
+    "Name": "FactionElection",
+    "Command": "FactionElection",
+    "Description": ""
+  },
+  {
+    "Id": 104,
+    "Name": "FactionItemReset",
+    "Command": "FactionItemReset",
+    "Description": ""
+  },
+  {
+    "Id": 105,
+    "Name": "FactionKick",
+    "Command": "FactionKick",
+    "Description": ""
+  },
+  {
+    "Id": 106,
+    "Name": "FactionReset",
+    "Command": "FactionReset",
+    "Description": ""
+  },
+  {
+    "Id": 107,
+    "Name": "FactionTownReset",
+    "Command": "FactionTownReset",
+    "Description": ""
+  },
+  {
+    "Id": 108,
+    "Name": "FactionUnban",
+    "Command": "FactionUnban",
+    "Description": ""
+  },
+  {
+    "Id": 109,
+    "Name": "Firewall",
+    "Command": "Firewall",
+    "Description": ""
+  },
+  {
+    "Id": 110,
+    "Name": "FishMongerStatus",
+    "Command": "FishMongerStatus",
+    "Description": ""
+  },
+  {
+    "Id": 111,
+    "Name": "Flag",
+    "Command": "Flag",
+    "Description": ""
+  },
+  {
+    "Id": 112,
+    "Name": "Flip",
+    "Command": "Flip",
+    "Description": ""
+  },
+  {
+    "Id": 113,
+    "Name": "ForceStartBattle",
+    "Command": "ForceStartBattle",
+    "Description": ""
+  },
+  {
+    "Id": 114,
+    "Name": "ForgetAllRecipes",
+    "Command": "ForgetAllRecipes",
+    "Description": ""
+  },
+  {
+    "Id": 115,
+    "Name": "Freeze",
+    "Command": "Freeze",
+    "Description": ""
+  },
+  {
+    "Id": 116,
+    "Name": "FreezeMap",
+    "Command": "FreezeMap",
+    "Description": ""
+  },
+  {
+    "Id": 117,
+    "Name": "FreezeWorld",
+    "Command": "FreezeWorld",
+    "Description": ""
+  },
+  {
+    "Id": 118,
+    "Name": "GenBlackthorn",
+    "Command": "GenBlackthorn",
+    "Description": ""
+  },
+  {
+    "Id": 119,
+    "Name": "GenBounds",
+    "Command": "GenBounds",
+    "Description": ""
+  },
+  {
+    "Id": 120,
+    "Name": "GenChampSpawns",
+    "Command": "GenChampSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 121,
+    "Name": "GenerateCasino",
+    "Command": "GenerateCasino",
+    "Description": ""
+  },
+  {
+    "Id": 122,
+    "Name": "GenerateFactions",
+    "Command": "GenerateFactions",
+    "Description": ""
+  },
+  {
+    "Id": 123,
+    "Name": "GenerateNewShame",
+    "Command": "GenerateNewShame",
+    "Description": ""
+  },
+  {
+    "Id": 124,
+    "Name": "GenerateTreasuresOfKotlCity",
+    "Command": "GenerateTreasuresOfKotlCity",
+    "Description": ""
+  },
+  {
+    "Id": 125,
+    "Name": "GenExodusNexus",
+    "Command": "GenExodusNexus",
+    "Description": ""
+  },
+  {
+    "Id": 126,
+    "Name": "GenExodusQuest",
+    "Command": "GenExodusQuest",
+    "Description": ""
+  },
+  {
+    "Id": 127,
+    "Name": "GenExploringTheDeep",
+    "Command": "GenExploringTheDeep",
+    "Description": ""
+  },
+  {
+    "Id": 128,
+    "Name": "GenForgottenPyramid",
+    "Command": "GenForgottenPyramid",
+    "Description": ""
+  },
+  {
+    "Id": 129,
+    "Name": "GenGameDocs",
+    "Command": "GenGameDocs",
+    "Description": ""
+  },
+  {
+    "Id": 130,
+    "Name": "GenGauntlet",
+    "Command": "GenGauntlet",
+    "Description": ""
+  },
+  {
+    "Id": 131,
+    "Name": "GenKhaldun",
+    "Command": "GenKhaldun",
+    "Description": ""
+  },
+  {
+    "Id": 132,
+    "Name": "GenLeverPuzzle",
+    "Command": "GenLeverPuzzle",
+    "Description": ""
+  },
+  {
+    "Id": 133,
+    "Name": "GenLichPuzzle",
+    "Command": "GenLichPuzzle",
+    "Description": ""
+  },
+  {
+    "Id": 134,
+    "Name": "GenMasterThinker",
+    "Command": "GenMasterThinker",
+    "Description": ""
+  },
+  {
+    "Id": 135,
+    "Name": "GenMiniChamp",
+    "Command": "GenMiniChamp",
+    "Description": ""
+  },
+  {
+    "Id": 136,
+    "Name": "GenNavrey",
+    "Command": "GenNavrey",
+    "Description": ""
+  },
+  {
+    "Id": 137,
+    "Name": "GenNewMagincia",
+    "Command": "GenNewMagincia",
+    "Description": ""
+  },
+  {
+    "Id": 138,
+    "Name": "GenReports",
+    "Command": "GenReports",
+    "Description": ""
+  },
+  {
+    "Id": 139,
+    "Name": "GenSorcerersPlate",
+    "Command": "GenSorcerersPlate",
+    "Description": ""
+  },
+  {
+    "Id": 140,
+    "Name": "GenStealArties",
+    "Command": "GenStealArties",
+    "Description": ""
+  },
+  {
+    "Id": 141,
+    "Name": "GenSutek",
+    "Command": "GenSutek",
+    "Description": ""
+  },
+  {
+    "Id": 142,
+    "Name": "GenToK",
+    "Command": "GenToK",
+    "Description": ""
+  },
+  {
+    "Id": 143,
+    "Name": "GenWinchAssembly",
+    "Command": "GenWinchAssembly",
+    "Description": ""
+  },
+  {
+    "Id": 144,
+    "Name": "GenWrongRevamp",
+    "Command": "GenWrongRevamp",
+    "Description": ""
+  },
+  {
+    "Id": 145,
+    "Name": "Get",
+    "Command": "Get",
+    "Description": ""
+  },
+  {
+    "Id": 146,
+    "Name": "GetAllianceEntry",
+    "Command": "GetAllianceEntry",
+    "Description": ""
+  },
+  {
+    "Id": 147,
+    "Name": "GetAtt",
+    "Command": "GetAtt",
+    "Description": ""
+  },
+  {
+    "Id": 148,
+    "Name": "GetCreatureScore",
+    "Command": "GetCreatureScore",
+    "Description": ""
+  },
+  {
+    "Id": 149,
+    "Name": "GetFollowers",
+    "Command": "GetFollowers",
+    "Description": ""
+  },
+  {
+    "Id": 150,
+    "Name": "GetLocation",
+    "Command": "GetLocation",
+    "Description": ""
+  },
+  {
+    "Id": 151,
+    "Name": "GetOPLString",
+    "Command": "GetOPLString",
+    "Description": ""
+  },
+  {
+    "Id": 152,
+    "Name": "GetSkill",
+    "Command": "GetSkill",
+    "Description": ""
+  },
+  {
+    "Id": 153,
+    "Name": "GetThrottle",
+    "Command": "GetThrottle",
+    "Description": ""
+  },
+  {
+    "Id": 154,
+    "Name": "GetTotalMods",
+    "Command": "GetTotalMods",
+    "Description": ""
+  },
+  {
+    "Id": 155,
+    "Name": "GetTotalWeight",
+    "Command": "GetTotalWeight",
+    "Description": ""
+  },
+  {
+    "Id": 156,
+    "Name": "GetType",
+    "Command": "GetType",
+    "Description": ""
+  },
+  {
+    "Id": 157,
+    "Name": "Global",
+    "Command": "Global",
+    "Description": ""
+  },
+  {
+    "Id": 158,
+    "Name": "GlobalLight",
+    "Command": "GlobalLight",
+    "Description": ""
+  },
+  {
+    "Id": 159,
+    "Name": "GMbody",
+    "Command": "GMbody",
+    "Description": ""
+  },
+  {
+    "Id": 160,
+    "Name": "Go",
+    "Command": "Go",
+    "Description": ""
+  },
+  {
+    "Id": 161,
+    "Name": "GrantTownSilver",
+    "Command": "GrantTownSilver",
+    "Description": ""
+  },
+  {
+    "Id": 162,
+    "Name": "Group",
+    "Command": "Group",
+    "Description": ""
+  },
+  {
+    "Id": 163,
+    "Name": "GuideEdit",
+    "Command": "GuideEdit",
+    "Description": ""
+  },
+  {
+    "Id": 164,
+    "Name": "GuildProps",
+    "Command": "GuildProps",
+    "Description": ""
+  },
+  {
+    "Id": 165,
+    "Name": "Help",
+    "Command": "Help",
+    "Description": ""
+  },
+  {
+    "Id": 166,
+    "Name": "HelpInfo",
+    "Command": "HelpInfo",
+    "Description": ""
+  },
+  {
+    "Id": 167,
+    "Name": "HeplerPaulson",
+    "Command": "HeplerPaulson",
+    "Description": ""
+  },
+  {
+    "Id": 168,
+    "Name": "HeplerPaulsonCollectComplete",
+    "Command": "HeplerPaulsonCollectComplete",
+    "Description": ""
+  },
+  {
+    "Id": 169,
+    "Name": "HeplerPaulsonComplete",
+    "Command": "HeplerPaulsonComplete",
+    "Description": ""
+  },
+  {
+    "Id": 170,
+    "Name": "Hide",
+    "Command": "Hide",
+    "Description": ""
+  },
+  {
+    "Id": 171,
+    "Name": "HWInfo",
+    "Command": "HWInfo",
+    "Description": ""
+  },
+  {
+    "Id": 172,
+    "Name": "Immortal",
+    "Command": "Immortal",
+    "Description": ""
+  },
+  {
+    "Id": 173,
+    "Name": "ImportSpawners",
+    "Command": "ImportSpawners",
+    "Description": ""
+  },
+  {
+    "Id": 174,
+    "Name": "Inc",
+    "Command": "Inc",
+    "Description": ""
+  },
+  {
+    "Id": 175,
+    "Name": "Increase",
+    "Command": "Increase",
+    "Description": ""
+  },
+  {
+    "Id": 176,
+    "Name": "IncreaseStage",
+    "Command": "IncreaseStage",
+    "Description": ""
+  },
+  {
+    "Id": 177,
+    "Name": "Interface",
+    "Command": "Interface",
+    "Description": ""
+  },
+  {
+    "Id": 178,
+    "Name": "Invul",
+    "Command": "Invul",
+    "Description": "",
+    "CommandOverride": "invulnerability"
+  },
+  {
+    "Id": 179,
+    "Name": "IPAddress",
+    "Command": "IPAddress",
+    "Description": ""
+  },
+  {
+    "Id": 180,
+    "Name": "ItemProps",
+    "Command": "ItemProps",
+    "Description": ""
+  },
+  {
+    "Id": 181,
+    "Name": "JosefSkimmons",
+    "Command": "JosefSkimmons",
+    "Description": ""
+  },
+  {
+    "Id": 182,
+    "Name": "JosefSkimmonsComplete",
+    "Command": "JosefSkimmonsComplete",
+    "Description": ""
+  },
+  {
+    "Id": 183,
+    "Name": "JosefSkimmonsScroll",
+    "Command": "JosefSkimmonsScroll",
+    "Description": ""
+  },
+  {
+    "Id": 184,
+    "Name": "JournalLetter",
+    "Command": "JournalLetter",
+    "Description": ""
+  },
+  {
+    "Id": 185,
+    "Name": "Kick",
+    "Command": "Kick",
+    "Description": ""
+  },
+  {
+    "Id": 186,
+    "Name": "Kill",
+    "Command": "Kill",
+    "Description": ""
+  },
+  {
+    "Id": 187,
+    "Name": "KrampusEncounter",
+    "Command": "KrampusEncounter",
+    "Description": ""
+  },
+  {
+    "Id": 188,
+    "Name": "LampPuzzleDelete",
+    "Command": "LampPuzzleDelete",
+    "Description": ""
+  },
+  {
+    "Id": 189,
+    "Name": "LanguageStatistics",
+    "Command": "LanguageStatistics",
+    "Description": ""
+  },
+  {
+    "Id": 190,
+    "Name": "LearnAllMasteries",
+    "Command": "LearnAllMasteries",
+    "Description": ""
+  },
+  {
+    "Id": 191,
+    "Name": "LearnAllRecipes",
+    "Command": "LearnAllRecipes",
+    "Description": ""
+  },
+  {
+    "Id": 192,
+    "Name": "LedgerLetter",
+    "Command": "LedgerLetter",
+    "Description": ""
+  },
+  {
+    "Id": 193,
+    "Name": "LiamDeFoe",
+    "Command": "LiamDeFoe",
+    "Description": ""
+  },
+  {
+    "Id": 194,
+    "Name": "Light",
+    "Command": "Light",
+    "Description": ""
+  },
+  {
+    "Id": 195,
+    "Name": "Link",
+    "Command": "Link",
+    "Description": ""
+  },
+  {
+    "Id": 196,
+    "Name": "ListenToParty",
+    "Command": "ListenToParty",
+    "Description": ""
+  },
+  {
+    "Id": 197,
+    "Name": "LoadNPC",
+    "Command": "LoadNPC",
+    "Description": ""
+  },
+  {
+    "Id": 198,
+    "Name": "m",
+    "Command": "m",
+    "Description": ""
+  },
+  {
+    "Id": 199,
+    "Name": "MadelineHarte",
+    "Command": "MadelineHarte",
+    "Description": ""
+  },
+  {
+    "Id": 200,
+    "Name": "MadelineHarteComplete",
+    "Command": "MadelineHarteComplete",
+    "Description": ""
+  },
+  {
+    "Id": 201,
+    "Name": "MadelineHarteScroll",
+    "Command": "MadelineHarteScroll",
+    "Description": ""
+  },
+  {
+    "Id": 202,
+    "Name": "Mark",
+    "Command": "Mark",
+    "Description": ""
+  },
+  {
+    "Id": 203,
+    "Name": "MaxSkills",
+    "Command": "MaxSkills",
+    "Description": ""
+  },
+  {
+    "Id": 204,
+    "Name": "Message",
+    "Command": "Message",
+    "Description": ""
+  },
+  {
+    "Id": 205,
+    "Name": "MoonGen",
+    "Command": "MoonGen",
+    "Description": ""
+  },
+  {
+    "Id": 206,
+    "Name": "MoonGenDelete",
+    "Command": "MoonGenDelete",
+    "Description": ""
+  },
+  {
+    "Id": 207,
+    "Name": "MorphChamberItems",
+    "Command": "MorphChamberItems",
+    "Description": ""
+  },
+  {
+    "Id": 208,
+    "Name": "Mortal",
+    "Command": "Mortal",
+    "Description": ""
+  },
+  {
+    "Id": 209,
+    "Name": "Move",
+    "Command": "Move",
+    "Description": ""
+  },
+  {
+    "Id": 210,
+    "Name": "MoveToSchool",
+    "Command": "MoveToSchool",
+    "Description": ""
+  },
+  {
+    "Id": 211,
+    "Name": "Msg",
+    "Command": "Msg",
+    "Description": ""
+  },
+  {
+    "Id": 212,
+    "Name": "MTSchematics",
+    "Command": "MTSchematics",
+    "Description": ""
+  },
+  {
+    "Id": 213,
+    "Name": "Multi",
+    "Command": "Multi",
+    "Description": ""
+  },
+  {
+    "Id": 214,
+    "Name": "NewTargetOfTheDay",
+    "Command": "NewTargetOfTheDay",
+    "Description": ""
+  },
+  {
+    "Id": 215,
+    "Name": "NoInvul",
+    "Command": "NoInvul",
+    "Description": "",
+    "CommandOverride": "no invulnerability"
+  },
+  {
+    "Id": 216,
+    "Name": "OB",
+    "Command": "OB",
+    "Description": ""
+  },
+  {
+    "Id": 217,
+    "Name": "Online",
+    "Command": "Online",
+    "Description": ""
+  },
+  {
+    "Id": 218,
+    "Name": "OpenBrowser",
+    "Command": "OpenBrowser",
+    "Description": ""
+  },
+  {
+    "Id": 219,
+    "Name": "OptimalSmartSpawning",
+    "Command": "OptimalSmartSpawning",
+    "Description": ""
+  },
+  {
+    "Id": 220,
+    "Name": "organize",
+    "Command": "organize",
+    "Description": ""
+  },
+  {
+    "Id": 221,
+    "Name": "Outline",
+    "Command": "Outline",
+    "Description": ""
+  },
+  {
+    "Id": 222,
+    "Name": "OutlineAvg",
+    "Command": "OutlineAvg",
+    "Description": ""
+  },
+  {
+    "Id": 223,
+    "Name": "OutlineRXYZ",
+    "Command": "OutlineRXYZ",
+    "Description": ""
+  },
+  {
+    "Id": 224,
+    "Name": "OutlineXYZ",
+    "Command": "OutlineXYZ",
+    "Description": ""
+  },
+  {
+    "Id": 225,
+    "Name": "OutlineZ",
+    "Command": "OutlineZ",
+    "Description": ""
+  },
+  {
+    "Id": 226,
+    "Name": "Pages",
+    "Command": "Pages",
+    "Description": ""
+  },
+  {
+    "Id": 227,
+    "Name": "Path",
+    "Command": "Path",
+    "Description": ""
+  },
+  {
+    "Id": 228,
+    "Name": "PetTrainTest",
+    "Command": "PetTrainTest",
+    "Description": ""
+  },
+  {
+    "Id": 229,
+    "Name": "PrintSkills",
+    "Command": "PrintSkills",
+    "Description": ""
+  },
+  {
+    "Id": 230,
+    "Name": "PrivSound",
+    "Command": "PrivSound",
+    "Description": ""
+  },
+  {
+    "Id": 231,
+    "Name": "ProfileWorld",
+    "Command": "ProfileWorld",
+    "Description": ""
+  },
+  {
+    "Id": 232,
+    "Name": "Props",
+    "Command": "Props",
+    "Description": ""
+  },
+  {
+    "Id": 233,
+    "Name": "QuestLeaderboardSave",
+    "Command": "QuestLeaderboardSave",
+    "Description": ""
+  },
+  {
+    "Id": 234,
+    "Name": "QuestLog",
+    "Command": "QuestLog",
+    "Description": ""
+  },
+  {
+    "Id": 235,
+    "Name": "QuestPoints",
+    "Command": "QuestPoints",
+    "Description": ""
+  },
+  {
+    "Id": 236,
+    "Name": "QuestRanking",
+    "Command": "QuestRanking",
+    "Description": ""
+  },
+  {
+    "Id": 237,
+    "Name": "Quests",
+    "Command": "Quests",
+    "Description": ""
+  },
+  {
+    "Id": 238,
+    "Name": "RandomMastery",
+    "Command": "RandomMastery",
+    "Description": ""
+  },
+  {
+    "Id": 239,
+    "Name": "RandomTalisman",
+    "Command": "RandomTalisman",
+    "Description": ""
+  },
+  {
+    "Id": 240,
+    "Name": "Range",
+    "Command": "Range",
+    "Description": ""
+  },
+  {
+    "Id": 241,
+    "Name": "RebuildCategorization",
+    "Command": "RebuildCategorization",
+    "Description": ""
+  },
+  {
+    "Id": 242,
+    "Name": "RecreateWorld",
+    "Command": "RecreateWorld",
+    "Description": ""
+  },
+  {
+    "Id": 243,
+    "Name": "RefreshHouse",
+    "Command": "RefreshHouse",
+    "Description": ""
+  },
+  {
+    "Id": 244,
+    "Name": "Region",
+    "Command": "Region",
+    "Description": ""
+  },
+  {
+    "Id": 245,
+    "Name": "Remove",
+    "Command": "Remove",
+    "Description": ""
+  },
+  {
+    "Id": 246,
+    "Name": "RemoveStealArties",
+    "Command": "RemoveStealArties",
+    "Description": ""
+  },
+  {
+    "Id": 247,
+    "Name": "RemoveWait",
+    "Command": "RemoveWait",
+    "Description": ""
+  },
+  {
+    "Id": 248,
+    "Name": "ReplaceBankers",
+    "Command": "ReplaceBankers",
+    "Description": ""
+  },
+  {
+    "Id": 249,
+    "Name": "Res",
+    "Command": "Res",
+    "Description": ""
+  },
+  {
+    "Id": 250,
+    "Name": "ResetArenaStats",
+    "Command": "ResetArenaStats",
+    "Description": ""
+  },
+  {
+    "Id": 251,
+    "Name": "RespawnAllRegions",
+    "Command": "RespawnAllRegions",
+    "Description": ""
+  },
+  {
+    "Id": 252,
+    "Name": "RespawnRegion",
+    "Command": "RespawnRegion",
+    "Description": ""
+  },
+  {
+    "Id": 253,
+    "Name": "Restart",
+    "Command": "Restart",
+    "Description": ""
+  },
+  {
+    "Id": 254,
+    "Name": "Restock",
+    "Command": "Restock",
+    "Description": ""
+  },
+  {
+    "Id": 255,
+    "Name": "RestrictBoats",
+    "Command": "RestrictBoats",
+    "Description": ""
+  },
+  {
+    "Id": 256,
+    "Name": "Resurrect",
+    "Command": "Resurrect",
+    "Description": ""
+  },
+  {
+    "Id": 257,
+    "Name": "RevertXmlSpawners",
+    "Command": "RevertXmlSpawners",
+    "Description": ""
+  },
+  {
+    "Id": 258,
+    "Name": "S",
+    "Command": "S",
+    "Description": ""
+  },
+  {
+    "Id": 259,
+    "Name": "Save",
+    "Command": "Save",
+    "Description": ""
+  },
+  {
+    "Id": 260,
+    "Name": "SaveBG",
+    "Command": "SaveBG",
+    "Description": ""
+  },
+  {
+    "Id": 261,
+    "Name": "SaveNPC",
+    "Command": "SaveNPC",
+    "Description": ""
+  },
+  {
+    "Id": 262,
+    "Name": "Screen",
+    "Command": "Screen",
+    "Description": ""
+  },
+  {
+    "Id": 263,
+    "Name": "SealedLettersEntry",
+    "Command": "SealedLettersEntry",
+    "Description": ""
+  },
+  {
+    "Id": 264,
+    "Name": "SeasonSystemGump",
+    "Command": "SeasonSystemGump",
+    "Description": ""
+  },
+  {
+    "Id": 265,
+    "Name": "SecretLocDelete",
+    "Command": "SecretLocDelete",
+    "Description": ""
+  },
+  {
+    "Id": 266,
+    "Name": "SecretLocGen",
+    "Command": "SecretLocGen",
+    "Description": ""
+  },
+  {
+    "Id": 267,
+    "Name": "Self",
+    "Command": "Self",
+    "Description": ""
+  },
+  {
+    "Id": 268,
+    "Name": "Serial",
+    "Command": "Serial",
+    "Description": ""
+  },
+  {
+    "Id": 269,
+    "Name": "Set",
+    "Command": "Set",
+    "Description": ""
+  },
+  {
+    "Id": 270,
+    "Name": "SetAllSkills",
+    "Command": "SetAllSkills",
+    "Description": "",
+	"HasArguments": "true"
+  },
+  {
+    "Id": 271,
+    "Name": "SetGuarded",
+    "Command": "SetGuarded",
+    "Description": ""
+  },
+  {
+    "Id": 272,
+    "Name": "SetProfiles",
+    "Command": "SetProfiles",
+    "Description": ""
+  },
+  {
+    "Id": 273,
+    "Name": "SetSaves",
+    "Command": "SetSaves",
+    "Description": ""
+  },
+  {
+    "Id": 274,
+    "Name": "SetSkill",
+    "Command": "SetSkill",
+    "Description": ""
+  },
+  {
+    "Id": 275,
+    "Name": "SetThrottle",
+    "Command": "SetThrottle",
+    "Description": ""
+  },
+  {
+    "Id": 276,
+    "Name": "SettingsML",
+    "Command": "SettingsML",
+    "Description": ""
+  },
+  {
+    "Id": 277,
+    "Name": "SetupCityLoyaltySystem",
+    "Command": "SetupCityLoyaltySystem",
+    "Description": ""
+  },
+  {
+    "Id": 278,
+    "Name": "SetupDespise",
+    "Command": "SetupDespise",
+    "Description": ""
+  },
+  {
+    "Id": 279,
+    "Name": "SetupNewCovetous",
+    "Command": "SetupNewCovetous",
+    "Description": ""
+  },
+  {
+    "Id": 280,
+    "Name": "ShaveBeard",
+    "Command": "ShaveBeard",
+    "Description": ""
+  },
+  {
+    "Id": 281,
+    "Name": "ShaveHair",
+    "Command": "ShaveHair",
+    "Description": ""
+  },
+  {
+    "Id": 282,
+    "Name": "SHTelGen",
+    "Command": "SHTelGen",
+    "Description": ""
+  },
+  {
+    "Id": 283,
+    "Name": "SHTelGenDelete",
+    "Command": "SHTelGenDelete",
+    "Description": ""
+  },
+  {
+    "Id": 284,
+    "Name": "Shutdown",
+    "Command": "Shutdown",
+    "Description": ""
+  },
+  {
+    "Id": 285,
+    "Name": "SignGen",
+    "Command": "SignGen",
+    "Description": ""
+  },
+  {
+    "Id": 286,
+    "Name": "SignGenDelete",
+    "Command": "SignGenDelete",
+    "Description": ""
+  },
+  {
+    "Id": 287,
+    "Name": "SignRemove",
+    "Command": "SignRemove",
+    "Description": ""
+  },
+  {
+    "Id": 288,
+    "Name": "SignSave",
+    "Command": "SignSave",
+    "Description": ""
+  },
+  {
+    "Id": 289,
+    "Name": "Single",
+    "Command": "Single",
+    "Description": ""
+  },
+  {
+    "Id": 290,
+    "Name": "Skills",
+    "Command": "Skills",
+    "Description": ""
+  },
+  {
+    "Id": 291,
+    "Name": "SM",
+    "Command": "SM",
+    "Description": ""
+  },
+  {
+    "Id": 292,
+    "Name": "SmartStat",
+    "Command": "SmartStat",
+    "Description": ""
+  },
+  {
+    "Id": 293,
+    "Name": "SMsg",
+    "Command": "SMsg",
+    "Description": ""
+  },
+  {
+    "Id": 294,
+    "Name": "Sound",
+    "Command": "Sound",
+    "Description": ""
+  },
+  {
+    "Id": 295,
+    "Name": "SpeechLog",
+    "Command": "SpeechLog",
+    "Description": ""
+  },
+  {
+    "Id": 296,
+    "Name": "SpeedBoost",
+    "Command": "SpeedBoost",
+    "Description": "",
+	"HasArguments": "true"
+  },
+  {
+    "Id": 297,
+    "Name": "Squelch",
+    "Command": "Squelch",
+    "Description": ""
+  },
+  {
+    "Id": 298,
+    "Name": "StartAllRegionSpawns",
+    "Command": "StartAllRegionSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 299,
+    "Name": "StartRegionSpawns",
+    "Command": "StartRegionSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 300,
+    "Name": "Stats",
+    "Command": "Stats",
+    "Description": ""
+  },
+  {
+    "Id": 301,
+    "Name": "Stealable",
+    "Command": "Stealable",
+    "Description": ""
+  },
+  {
+    "Id": 302,
+    "Name": "StealArtiesForceRespawn",
+    "Command": "StealArtiesForceRespawn",
+    "Description": ""
+  },
+  {
+    "Id": 303,
+    "Name": "StopAllRegionSpawns",
+    "Command": "StopAllRegionSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 304,
+    "Name": "StopRegionSpawns",
+    "Command": "StopRegionSpawns",
+    "Description": ""
+  },
+  {
+    "Id": 305,
+    "Name": "Store",
+    "Command": "Store",
+    "Description": ""
+  },
+  {
+    "Id": 306,
+    "Name": "StormLevelGump",
+    "Command": "StormLevelGump",
+    "Description": ""
+  },
+  {
+    "Id": 307,
+    "Name": "Stuck",
+    "Command": "Stuck",
+    "Description": ""
+  },
+  {
+    "Id": 308,
+    "Name": "SuspicionsLetters",
+    "Command": "SuspicionsLetters",
+    "Description": ""
+  },
+  {
+    "Id": 309,
+    "Name": "SystemInfo",
+    "Command": "SystemInfo",
+    "Description": ""
+  },
+  {
+    "Id": 310,
+    "Name": "Tele",
+    "Command": "Tele",
+    "Description": ""
+  },
+  {
+    "Id": 311,
+    "Name": "Teleport",
+    "Command": "Teleport",
+    "Description": ""
+  },
+  {
+    "Id": 312,
+    "Name": "TelGen",
+    "Command": "TelGen",
+    "Description": ""
+  },
+  {
+    "Id": 313,
+    "Name": "TelGenDelete",
+    "Command": "TelGenDelete",
+    "Description": ""
+  },
+  {
+    "Id": 314,
+    "Name": "Tell",
+    "Command": "Tell",
+    "Description": ""
+  },
+  {
+    "Id": 315,
+    "Name": "Tile",
+    "Command": "Tile",
+    "Description": ""
+  },
+  {
+    "Id": 316,
+    "Name": "TileAvg",
+    "Command": "TileAvg",
+    "Description": ""
+  },
+  {
+    "Id": 317,
+    "Name": "TileRXYZ",
+    "Command": "TileRXYZ",
+    "Description": ""
+  },
+  {
+    "Id": 318,
+    "Name": "TileXYZ",
+    "Command": "TileXYZ",
+    "Description": ""
+  },
+  {
+    "Id": 319,
+    "Name": "TileZ",
+    "Command": "TileZ",
+    "Description": ""
+  },
+  {
+    "Id": 320,
+    "Name": "Time",
+    "Command": "Time",
+    "Description": ""
+  },
+  {
+    "Id": 321,
+    "Name": "TimeStamp",
+    "Command": "TimeStamp",
+    "Description": ""
+  },
+  {
+    "Id": 322,
+    "Name": "Toggle",
+    "Command": "Toggle",
+    "Description": ""
+  },
+  {
+    "Id": 323,
+    "Name": "ToggleGuarded",
+    "Command": "ToggleGuarded",
+    "Description": ""
+  },
+  {
+    "Id": 324,
+    "Name": "TomeAltarGump",
+    "Command": "TomeAltarGump",
+    "Description": ""
+  },
+  {
+    "Id": 325,
+    "Name": "TOSDSpawner",
+    "Command": "TOSDSpawner",
+    "Description": ""
+  },
+  {
+    "Id": 326,
+    "Name": "ToTAdmin",
+    "Command": "ToTAdmin",
+    "Description": ""
+  },
+  {
+    "Id": 327,
+    "Name": "TownCriers",
+    "Command": "TownCriers",
+    "Description": ""
+  },
+  {
+    "Id": 328,
+    "Name": "TraceExpanded",
+    "Command": "TraceExpanded",
+    "Description": ""
+  },
+  {
+    "Id": 329,
+    "Name": "TraceInternal",
+    "Command": "TraceInternal",
+    "Description": ""
+  },
+  {
+    "Id": 330,
+    "Name": "TraceLockdown",
+    "Command": "TraceLockdown",
+    "Description": ""
+  },
+  {
+    "Id": 331,
+    "Name": "Unfreeze",
+    "Command": "Unfreeze",
+    "Description": ""
+  },
+  {
+    "Id": 332,
+    "Name": "UnfreezeMap",
+    "Command": "UnfreezeMap",
+    "Description": ""
+  },
+  {
+    "Id": 333,
+    "Name": "UnfreezeWorld",
+    "Command": "UnfreezeWorld",
+    "Description": ""
+  },
+  {
+    "Id": 334,
+    "Name": "Unhide",
+    "Command": "Unhide",
+    "Description": ""
+  },
+  {
+    "Id": 335,
+    "Name": "UnloadFelucca",
+    "Command": "UnloadFelucca",
+    "Description": ""
+  },
+  {
+    "Id": 336,
+    "Name": "UnloadIlshenar",
+    "Command": "UnloadIlshenar",
+    "Description": ""
+  },
+  {
+    "Id": 337,
+    "Name": "UnloadMalas",
+    "Command": "UnloadMalas",
+    "Description": ""
+  },
+  {
+    "Id": 338,
+    "Name": "UnloadTermur",
+    "Command": "UnloadTermur",
+    "Description": ""
+  },
+  {
+    "Id": 339,
+    "Name": "UnloadTokuno",
+    "Command": "UnloadTokuno",
+    "Description": ""
+  },
+  {
+    "Id": 340,
+    "Name": "UnloadTrammel",
+    "Command": "UnloadTrammel",
+    "Description": ""
+  },
+  {
+    "Id": 341,
+    "Name": "Unsquelch",
+    "Command": "Unsquelch",
+    "Description": ""
+  },
+  {
+    "Id": 342,
+    "Name": "ValidateName",
+    "Command": "ValidateName",
+    "Description": ""
+  },
+  {
+    "Id": 343,
+    "Name": "ViewEquip",
+    "Command": "ViewEquip",
+    "Description": ""
+  },
+  {
+    "Id": 344,
+    "Name": "ViewHouses",
+    "Command": "ViewHouses",
+    "Description": ""
+  },
+  {
+    "Id": 345,
+    "Name": "ViewLottos",
+    "Command": "ViewLottos",
+    "Description": ""
+  },
+  {
+    "Id": 346,
+    "Name": "Vis",
+    "Command": "Vis",
+    "Description": ""
+  },
+  {
+    "Id": 347,
+    "Name": "VisClear",
+    "Command": "VisClear",
+    "Description": ""
+  },
+  {
+    "Id": 348,
+    "Name": "VisList",
+    "Command": "VisList",
+    "Description": ""
+  },
+  {
+    "Id": 349,
+    "Name": "VvVKick",
+    "Command": "VvVKick",
+    "Description": ""
+  },
+  {
+    "Id": 350,
+    "Name": "WayPointSeq",
+    "Command": "WayPointSeq",
+    "Description": ""
+  },
+  {
+    "Id": 351,
+    "Name": "WhatIsIt",
+    "Command": "WhatIsIt",
+    "Description": ""
+  },
+  {
+    "Id": 352,
+    "Name": "Where",
+    "Command": "Where",
+    "Description": ""
+  },
+  {
+    "Id": 353,
+    "Name": "Who",
+    "Command": "Who",
+    "Description": ""
+  },
+  {
+    "Id": 354,
+    "Name": "WhoList",
+    "Command": "WhoList",
+    "Description": ""
+  },
+  {
+    "Id": 355,
+    "Name": "WillemHarte",
+    "Command": "WillemHarte",
+    "Description": ""
+  },
+  {
+    "Id": 356,
+    "Name": "Wipe",
+    "Command": "Wipe",
+    "Description": ""
+  },
+  {
+    "Id": 357,
+    "Name": "WipeAllXmlSpawners",
+    "Command": "WipeAllXmlSpawners",
+    "Description": ""
+  },
+  {
+    "Id": 358,
+    "Name": "WipeItems",
+    "Command": "WipeItems",
+    "Description": ""
+  },
+  {
+    "Id": 359,
+    "Name": "WipeMultis",
+    "Command": "WipeMultis",
+    "Description": ""
+  },
+  {
+    "Id": 360,
+    "Name": "WipeNPCs",
+    "Command": "WipeNPCs",
+    "Description": ""
+  },
+  {
+    "Id": 361,
+    "Name": "WriteMulti",
+    "Command": "WriteMulti",
+    "Description": ""
+  },
+  {
+    "Id": 362,
+    "Name": "WriteProfiles",
+    "Command": "WriteProfiles",
+    "Description": ""
+  },
+  {
+    "Id": 363,
+    "Name": "XmlAdd",
+    "Command": "XmlAdd",
+    "Description": ""
+  },
+  {
+    "Id": 364,
+    "Name": "XmlDefaults",
+    "Command": "XmlDefaults",
+    "Description": ""
+  },
+  {
+    "Id": 365,
+    "Name": "XmlEdit",
+    "Command": "XmlEdit",
+    "Description": ""
+  },
+  {
+    "Id": 366,
+    "Name": "XmlFind",
+    "Command": "XmlFind",
+    "Description": ""
+  },
+  {
+    "Id": 367,
+    "Name": "XmlGet",
+    "Command": "XmlGet",
+    "Description": ""
+  },
+  {
+    "Id": 368,
+    "Name": "XmlGetAtt",
+    "Command": "XmlGetAtt",
+    "Description": ""
+  },
+  {
+    "Id": 369,
+    "Name": "XmlGo",
+    "Command": "XmlGo",
+    "Description": ""
+  },
+  {
+    "Id": 370,
+    "Name": "XmlHide",
+    "Command": "XmlHide",
+    "Description": ""
+  },
+  {
+    "Id": 371,
+    "Name": "XmlHome",
+    "Command": "XmlHome",
+    "Description": ""
+  },
+  {
+    "Id": 372,
+    "Name": "XmlImportMap",
+    "Command": "XmlImportMap",
+    "Description": ""
+  },
+  {
+    "Id": 373,
+    "Name": "XmlImportMSF",
+    "Command": "XmlImportMSF",
+    "Description": ""
+  },
+  {
+    "Id": 374,
+    "Name": "XmlImportSpawners",
+    "Command": "XmlImportSpawners",
+    "Description": ""
+  },
+  {
+    "Id": 375,
+    "Name": "XmlLoad",
+    "Command": "XmlLoad",
+    "Description": ""
+  },
+  {
+    "Id": 376,
+    "Name": "XmlLoadHere",
+    "Command": "XmlLoadHere",
+    "Description": ""
+  },
+  {
+    "Id": 377,
+    "Name": "XmlMake",
+    "Command": "XmlMake",
+    "Description": ""
+  },
+  {
+    "Id": 378,
+    "Name": "XmlNewLoad",
+    "Command": "XmlNewLoad",
+    "Description": ""
+  },
+  {
+    "Id": 379,
+    "Name": "XmlNewLoadHere",
+    "Command": "XmlNewLoadHere",
+    "Description": ""
+  },
+  {
+    "Id": 380,
+    "Name": "XmlResetTrace",
+    "Command": "XmlResetTrace",
+    "Description": ""
+  },
+  {
+    "Id": 381,
+    "Name": "XmlSave",
+    "Command": "XmlSave",
+    "Description": ""
+  },
+  {
+    "Id": 382,
+    "Name": "XmlSaveAll",
+    "Command": "XmlSaveAll",
+    "Description": ""
+  },
+  {
+    "Id": 383,
+    "Name": "XmlSaveOld",
+    "Command": "XmlSaveOld",
+    "Description": ""
+  },
+  {
+    "Id": 384,
+    "Name": "XmlSaveSingle",
+    "Command": "XmlSaveSingle",
+    "Description": ""
+  },
+  {
+    "Id": 385,
+    "Name": "XmlSet",
+    "Command": "XmlSet",
+    "Description": ""
+  },
+  {
+    "Id": 386,
+    "Name": "XmlShow",
+    "Command": "XmlShow",
+    "Description": ""
+  },
+  {
+    "Id": 387,
+    "Name": "XmlSpawnerHideAll",
+    "Command": "XmlSpawnerHideAll",
+    "Description": ""
+  },
+  {
+    "Id": 388,
+    "Name": "XmlSpawnerLoad",
+    "Command": "XmlSpawnerLoad",
+    "Description": ""
+  },
+  {
+    "Id": 389,
+    "Name": "XmlSpawnerRespawn",
+    "Command": "XmlSpawnerRespawn",
+    "Description": ""
+  },
+  {
+    "Id": 390,
+    "Name": "XmlSpawnerRespawnAll",
+    "Command": "XmlSpawnerRespawnAll",
+    "Description": ""
+  },
+  {
+    "Id": 391,
+    "Name": "XmlSpawnerSave",
+    "Command": "XmlSpawnerSave",
+    "Description": ""
+  },
+  {
+    "Id": 392,
+    "Name": "XmlSpawnerSaveAll",
+    "Command": "XmlSpawnerSaveAll",
+    "Description": ""
+  },
+  {
+    "Id": 393,
+    "Name": "XmlSpawnerShowAll",
+    "Command": "XmlSpawnerShowAll",
+    "Description": ""
+  },
+  {
+    "Id": 394,
+    "Name": "XmlSpawnerUnLoad",
+    "Command": "XmlSpawnerUnLoad",
+    "Description": ""
+  },
+  {
+    "Id": 395,
+    "Name": "XmlSpawnerWipe",
+    "Command": "XmlSpawnerWipe",
+    "Description": ""
+  },
+  {
+    "Id": 396,
+    "Name": "XmlSpawnerWipeAll",
+    "Command": "XmlSpawnerWipeAll",
+    "Description": ""
+  },
+  {
+    "Id": 397,
+    "Name": "XmlTrace",
+    "Command": "XmlTrace",
+    "Description": ""
+  },
+  {
+    "Id": 398,
+    "Name": "XmlUnLoad",
+    "Command": "XmlUnLoad",
+    "Description": ""
+  },
+  {
+    "Id": 399,
+    "Name": "ZaliaQuest",
+    "Command": "ZaliaQuest",
+    "Description": ""
+  },
+  {
+    "Id": 400,
+    "Name": "ZaliaQuestComplete",
+    "Command": "ZaliaQuestComplete",
+    "Description": ""
+  }
+]

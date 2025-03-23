@@ -79,9 +79,25 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="System.Speech" Version="9.0.2" />
+    <PackageReference Include="Vosk" Version="0.3.38" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="cuoapi">
       <HintPath>..\..\external\cuoapi\cuoapi.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="settings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="SpeechRecognition\speechcommands.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <PropertyGroup>
