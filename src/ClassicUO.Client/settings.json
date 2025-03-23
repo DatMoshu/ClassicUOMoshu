@@ -1,0 +1,33 @@
+{
+  "username": "Moshu",
+  "password": "1-7C7D607C607B",
+  "ip": "127.0.0.1",
+  "port": 2593,
+  "ultimaonlinedirectory": "D:/Games/Electronic Arts/Ultima Online Classic",
+  "clientversion": "7.0.99.0",
+  "lastcharactername": "",
+  "cliloc": "Cliloc.enu",
+  "lastservernum": 1,
+  "fps": 60,
+  "window_position": null,
+  "window_size": null,
+  "is_win_maximized": true,
+  "saveaccount": true,
+  "autologin": true,
+  "reconnect": false,
+  "reconnect_time": 30,
+  "login_music": true,
+  "login_music_volume": 30,
+  "shard_type": 0,
+  "fixed_time_step": true,
+  "run_mouse_in_separate_thread": true,
+  "force_driver": 0,
+  "use_verdata": false,
+  "encryption": 0,
+  "plugins": [
+    "C:/Razor/Razor-x64-1.9.77.0/Razor.exe"
+  ],
+  "vosk_model": "C:\\Users\\kaise\\Downloads\\vosk-model-small-en-us-0.15\\vosk-model-small-en-us-0.15",
+  "vosk_sample_rate": 16000,
+  "enable_speech_recognition": true
+}

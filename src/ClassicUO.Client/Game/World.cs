@@ -16,6 +16,7 @@ using ClassicUO.Game.Scenes;
 using ClassicUO.Utility.Logging;
 using ClassicUO.Assets;
 using ClassicUO.Network;
+using System;
 
 namespace ClassicUO.Game
 {
@@ -24,9 +25,18 @@ namespace ClassicUO.Game
         private readonly EffectManager _effectManager;
         private readonly List<uint> _toRemove = new List<uint>();
         private uint _timeToDelete;
+        private SpeechRecognitionManager _speechRecognitionManager;
 
         public World()
         {
+            if (Settings.GlobalSettings.SpeechRecognitionEnabled)
+            {
+                _speechRecognitionManager = new SpeechRecognitionManager();
+                _speechRecognitionManager.Initialize(Settings.GlobalSettings.VoskModelDirectory, Settings.GlobalSettings.VoskSampleRate, this);
+                _speechRecognitionManager.Start();
+                Console.WriteLine("Speech recognition enabled - Sample Rate: {0}", Settings.GlobalSettings.VoskSampleRate);
+            }
+
             WMapManager = new WorldMapEntityManager(this);
             CorpseManager = new CorpseManager(this);
             Party = new PartyManager(this);
@@ -238,6 +248,19 @@ namespace ClassicUO.Game
             if (currentMusic == null || currentMusic.Index == Client.Game.Audio.LoginMusicIndex)
             {
                 Client.Game.Audio.PlayMusic(music, false);
+            }
+        }
+
+        public void ChangeSeasonCommand(string seasonName, int music)
+        {
+            if (Enum.TryParse(seasonName, true, out Season season))
+            {
+                ChangeSeason(season, music);
+                Console.WriteLine($"Season changed to {season} with music {music}");
+            }
+            else
+            {
+                Console.WriteLine($"Invalid season name: {seasonName}");
             }
         }
 

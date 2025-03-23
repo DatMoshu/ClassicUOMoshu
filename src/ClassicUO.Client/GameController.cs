@@ -39,8 +39,11 @@ namespace ClassicUO
         private Texture2D _background;
         private bool _pluginsInitialized = false;
 
+
         public GameController(IPluginHost pluginHost)
         {
+
+
             GraphicManager = new GraphicsDeviceManager(this);
 
             GraphicManager.PreparingDeviceSettings += (sender, e) =>
@@ -64,6 +67,7 @@ namespace ClassicUO
 
         public Scene Scene { get; private set; }
         public AudioManager Audio { get; private set; }
+        public SpeechRecognitionManager speechRecognitionManager { get; private set; }
         public UltimaOnline UO { get; } = new UltimaOnline();
         public IPluginHost PluginHost { get; private set; }
         public GraphicsDeviceManager GraphicManager { get; }
@@ -111,6 +115,7 @@ namespace ClassicUO
 #else
             UO.Load(this);
             Audio.Initialize();
+
             // TODO: temporary fix to avoid crash when laoding plugins
             Settings.GlobalSettings.Encryption = (byte) NetClient.Socket.Load(UO.FileManager.Version, (EncryptionType) Settings.GlobalSettings.Encryption);
 
@@ -132,6 +137,7 @@ namespace ClassicUO
 
         protected override void UnloadContent()
         {
+            
             SDL_GetWindowBordersSize(Window.Handle, out int top, out int left, out _, out _);
 
             Settings.GlobalSettings.WindowPosition = new Point(
@@ -340,6 +346,8 @@ namespace ClassicUO
             Time.Delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             Mouse.Update();
+
+            
 
             var data = NetClient.Socket.CollectAvailableData();
             var packetsCount = PacketHandlers.Handler.ParsePackets(NetClient.Socket, UO.World, data);

@@ -88,6 +88,12 @@ namespace ClassicUO.Configuration
 
         [JsonPropertyName("plugins")] public string[] Plugins { get; set; } = { @"./Assistant/Razor.dll" };
 
+        [JsonPropertyName("vosk_model")] public string VoskModelDirectory { get; set; } = @"path/to/modelfolder";
+
+        [JsonPropertyName("vosk_sample_rate")] public int VoskSampleRate { get; set; } = 16000;
+
+        [JsonPropertyName("enable_speech_recognition")] public bool SpeechRecognitionEnabled { get; set; } = false;
+
         public static string GetSettingsFilepath()
         {
             if (CustomSettingsFilepath != null)

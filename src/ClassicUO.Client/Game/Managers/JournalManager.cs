@@ -1,9 +1,12 @@
 ﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
+using ClassicUO.SpeechRecognition;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Collections;
 using ClassicUO.Utility.Logging;
@@ -14,6 +17,7 @@ namespace ClassicUO.Game.Managers
     {
         private StreamWriter _fileWriter;
         private bool _writerHasException;
+        //private List<string> _messageHistory;
 
         public static Deque<JournalEntry> Entries { get; } = new Deque<JournalEntry>(Constants.MAX_JOURNAL_HISTORY_COUNT);
 
@@ -22,6 +26,16 @@ namespace ClassicUO.Game.Managers
 
         public void Add(string text, ushort hue, string name, TextType type, bool isunicode = true, MessageType messageType = MessageType.Regular)
         {
+
+
+            //if (_messageHistory == null)
+            //    _messageHistory = new List<string>();
+
+            //ProcessMessageHistory();
+
+            //_messageHistory.Add(text);
+
+
             JournalEntry entry = Entries.Count >= Constants.MAX_JOURNAL_HISTORY_COUNT ? Entries.RemoveFromFront() : new JournalEntry();
 
             byte font = (byte) (isunicode ? 0 : 9);
@@ -116,6 +130,50 @@ namespace ClassicUO.Game.Managers
             //Entries.Clear();
             CloseWriter();
         }
+
+        //public void ProcessMessageHistory()
+        //{
+        //    List<SpeechCommandInfo> commandList = new List<SpeechCommandInfo>();
+        //    int id = 0;
+
+        //    foreach (string message in _messageHistory)
+        //    {
+        //        string[] splitMessage = message.Split(' ');
+
+        //        foreach (string command in splitMessage)
+        //        {
+        //            SpeechCommandInfo commandInfo = new SpeechCommandInfo
+        //            {
+        //                Id = id++,
+        //                Name = command,
+        //                Command = command,
+        //                Description = ""
+        //            };
+        //            commandList.Add(commandInfo);
+        //        }
+        //    }
+
+        //    // Manually serialize commandList to JSON with indenting
+        //    var json = new System.Text.StringBuilder();
+        //    json.AppendLine("[");
+        //    for (int i = 0; i < commandList.Count; i++)
+        //    {
+        //        var command = commandList[i];
+        //        json.AppendLine("  {");
+        //        json.AppendLine($"    \"Id\": {command.Id},");
+        //        json.AppendLine($"    \"Name\": \"{command.Name}\",");
+        //        json.AppendLine($"    \"Command\": \"{command.Command}\",");
+        //        json.AppendLine($"    \"Description\": \"{command.Description}\"");
+        //        json.Append("  }");
+        //        if (i < commandList.Count - 1)
+        //            json.AppendLine(",");
+        //        else
+        //            json.AppendLine();
+        //    }
+        //    json.AppendLine("]");
+        //    Console.WriteLine(json.ToString());
+        //}
+
     }
 
     internal class JournalEntry

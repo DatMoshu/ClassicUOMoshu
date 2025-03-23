@@ -128,5 +128,10 @@ namespace ClassicUO.Game.Managers
             Mouse.LastLeftButtonClickTime = 0;
             GameActions.Print(_world, string.Format(ResGeneral.ItemID0Hue1, entity.Graphic, entity.Hue));
         }
+
+        public Dictionary<string, Action<string[]>> GetCommands()
+        {
+            return _commands;
+        }
     }
 }

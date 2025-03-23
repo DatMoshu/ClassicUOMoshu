@@ -210,7 +210,7 @@ namespace ClassicUO
             Debug.Assert(Game == null);
 
             Log.Trace("Running game...");
-
+            
             using (Game = new GameController(pluginHost))
             {
                 // https://github.com/FNA-XNA/FNA/wiki/7:-FNA-Environment-Variables#fna_graphics_enable_highdpi
@@ -223,7 +223,7 @@ namespace ClassicUO
 
                 Game.Run();
             }
-
+            
             Log.Trace("Exiting game...");
         }
 

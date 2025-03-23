@@ -98,6 +98,30 @@ namespace ClassicUO.Game.GameObjects
             }
         }
 
+        public void AddListening(string message)
+        {
+            TextObject text_obj = TextObject.Create(_world);
+
+            //if (ProfileManager.CurrentProfile.ShowDPSWithDamageNumbers && Parent != null)
+            //    message += $" (DPS: {Parent.GetCurrentDPS()})";
+
+            text_obj.RenderedText = RenderedText.Create(
+                message,
+                (ushort)(ReferenceEquals(Parent, _world.Player) ? 0x0034 : 0x0021),
+                3,
+                false
+            );
+
+            text_obj.Time = Time.Ticks + 5000;
+
+            _messages.AddToFront(text_obj);
+
+            if (_messages.Count > 10)
+            {
+                _messages.RemoveFromBack()?.Destroy();
+            }
+        }
+
         public void Update()
         {
             if (IsDestroyed)

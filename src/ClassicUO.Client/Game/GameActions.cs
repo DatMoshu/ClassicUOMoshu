@@ -846,5 +846,10 @@ namespace ClassicUO.Game
                 bag
             );
         }
+
+        internal static void SetSeason(Season fall)
+        {
+            
+        }
     }
 }
