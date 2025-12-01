@@ -1,10 +1,10 @@
+using System;
 using ClassicUO.Assets;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SDL3;
-using System;
 
 namespace ClassicUO.Renderer.Arts
 {
@@ -24,6 +24,25 @@ namespace ClassicUO.Renderer.Arts
             _atlas = new TextureAtlas(device, 4096, 4096, SurfaceFormat.Color);
             _spriteInfos = new SpriteInfo[_artLoader.File.Entries.Length];
             _realArtBounds = new Rectangle[_spriteInfos.Length];
+            _artLoader.AssetChanged += InvalidateCache;
+        }
+
+        private void InvalidateCache(uint idx)
+        {
+            if (idx < _spriteInfos.Length)
+            {
+                ref var spriteInfo = ref _spriteInfos[idx];
+                // We don't dispose the texture here because it's part of an atlas? 
+                // TextureAtlas.AddSprite returns a Texture2D which is the atlas texture.
+                // We can't dispose the atlas texture.
+                // But we can set spriteInfo.Texture to null so it reloads.
+                // The old space in the atlas will be wasted, but that's acceptable for hot reload.
+                
+                spriteInfo.Texture = null;
+                spriteInfo.UV = Rectangle.Empty;
+                spriteInfo.Pivot = Point.Zero;
+                _realArtBounds[idx] = Rectangle.Empty;
+            }
         }
 
         public ref readonly SpriteInfo GetLand(uint idx)
@@ -60,6 +79,9 @@ namespace ClassicUO.Renderer.Arts
                     out spriteInfo.UV
                 );
 
+                spriteInfo.Pivot = new Point(artInfo.PivotX, artInfo.PivotY);
+                spriteInfo.Scale = artInfo.Scale;
+
                 if (idx > 0x4000)
                 {
                     idx -= 0x4000;
@@ -87,7 +109,7 @@ namespace ClassicUO.Renderer.Arts
 
                     _realArtBounds[idx] = new Rectangle(minX, minY, maxX - minX, maxY - minY);
                 }
-                
+
             }
 
             return ref spriteInfo;

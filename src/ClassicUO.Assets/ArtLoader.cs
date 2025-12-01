@@ -1,16 +1,17 @@
 ﻿// SPDX-License-Identifier: BSD-2-Clause
 
-using ClassicUO.IO;
-using ClassicUO.Utility;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using ClassicUO.IO;
+using ClassicUO.Utility;
 
 namespace ClassicUO.Assets
 {
     public sealed class ArtLoader : UOFileLoader
     {
         private UOFile _file;
+        private IAssetProvider[] _providers;
         public const int MAX_LAND_DATA_INDEX_COUNT = 0x4000;
         public const int MAX_STATIC_DATA_INDEX_COUNT = 0x14000;
 
@@ -42,129 +43,36 @@ namespace ClassicUO.Assets
             }
 
             _file.FillEntries();
+
+            _providers = new IAssetProvider[]
+            {
+                new FileSystemAssetProvider(FileManager.BasePath),
+                new LegacyAssetProvider(_file)
+            };
+
+            foreach (var provider in _providers)
+            {
+                provider.AssetChanged += OnAssetChanged;
+            }
+        }
+
+        public event Action<uint> AssetChanged;
+
+        private void OnAssetChanged(int id, AssetType type)
+        {
+            uint idx = (uint)id;
+            if (type == AssetType.Static)
+            {
+                idx += MAX_LAND_DATA_INDEX_COUNT;
+            }
+
+            AssetChanged?.Invoke(idx);
         }
 
         // public Rectangle GetRealArtBounds(int index) =>
         //     index + 0x4000 >= _spriteInfos.Length
         //         ? Rectangle.Empty
         //         : _spriteInfos[index + 0x4000].ArtBounds;
-
-        private static uint[] LoadLand(UOFile file, ref readonly UOFileIndex entry, out short width, out short height)
-        {
-            if (entry.Length == 0)
-            {
-                width = 0;
-                height = 0;
-
-                return Array.Empty<uint>();
-            }
-
-            width = 44;
-            height = 44;
-
-            if (entry.File != null)
-                file = entry.File;
-
-            file.Seek(entry.Offset, SeekOrigin.Begin);
-
-            var data = new uint[width * height];
-
-            for (int i = 0; i < 22; ++i)
-            {
-                int start = 22 - (i + 1);
-                int pos = i * 44 + start;
-                int end = start + ((i + 1) << 1);
-
-                for (int j = start; j < end; ++j)
-                {
-                    data[pos++] = HuesHelper.Color16To32(file.ReadUInt16()) | 0xFF_00_00_00;
-                }
-            }
-
-            for (int i = 0; i < 22; ++i)
-            {
-                int pos = (i + 22) * 44 + i;
-                int end = i + ((22 - i) << 1);
-
-                for (int j = i; j < end; ++j)
-                {
-                    data[pos++] = HuesHelper.Color16To32(file.ReadUInt16()) | 0xFF_00_00_00;
-                }
-            }
-
-            return data;
-        }
-
-        private static unsafe uint[] LoadArt(UOFile file, ref readonly UOFileIndex entry, out short width, out short height)
-        {
-            if (entry.Length == 0)
-            {
-                width = 0;
-                height = 0;
-
-                return Array.Empty<uint>();
-            }
-
-            if (entry.File != null)
-                file = entry.File;
-
-            file.Seek(entry.Offset, SeekOrigin.Begin);
-
-            var flags = file.ReadUInt32();
-            width = file.ReadInt16();
-            height = file.ReadInt16();
-
-            var buf = new byte[entry.Length];
-            file.Read(buf);
-
-            var data = new uint[width * height];
-
-            fixed (byte* startPtr = buf)
-            {
-                ushort* lineoffsets = (ushort*)startPtr;
-                byte* datastart = (byte*)startPtr + height * 2;
-                int x = 0;
-                int y = 0;
-                var ptr = (ushort*)(datastart + lineoffsets[0] * 2);
-
-                while (y < height)
-                {
-                    ushort xoffs = *ptr++;
-                    ushort run = *ptr++;
-
-                    if (xoffs + run >= 2048)
-                    {
-                        break;
-                    }
-
-                    if (xoffs + run != 0)
-                    {
-                        x += xoffs;
-                        int pos = y * width + x;
-
-                        for (int j = 0; j < run; ++j, ++pos)
-                        {
-                            ushort val = *ptr++;
-
-                            if (val != 0)
-                            {
-                                data[pos] = HuesHelper.Color16To32(val) | 0xFF_00_00_00;
-                            }
-                        }
-
-                        x += run;
-                    }
-                    else
-                    {
-                        x = 0;
-                        ++y;
-                        ptr = (ushort*)(datastart + lineoffsets[y] * 2);
-                    }
-                }
-            }
-
-            return data;
-        }
 
         private static void AddBlackBorder(Span<uint> pixels, int width, int height)
         {
@@ -207,18 +115,46 @@ namespace ClassicUO.Assets
 
         public ArtInfo GetArt(uint idx)
         {
-            ref var entry = ref _file.GetValidRefEntry((int)idx);
-            var loadLand = idx < 0x4000;
-            var pixels = loadLand ?
-                LoadLand(_file, in entry, out var width, out var height)
-                :
-                LoadArt(_file, in entry, out width, out height);
+            if (_providers == null)
+            {
+                return default;
+            }
+
+            AssetType type;
+            int id;
+
+            if (idx < MAX_LAND_DATA_INDEX_COUNT)
+            {
+                type = AssetType.Land;
+                id = (int)idx;
+            }
+            else
+            {
+                type = AssetType.Static;
+                id = (int)(idx - MAX_LAND_DATA_INDEX_COUNT);
+            }
+
+            foreach (var provider in _providers)
+            {
+                if (provider.TryGetAsset(id, type, out var asset))
+                {
+                    return new ArtInfo()
+                    {
+                        Pixels = asset.Pixels,
+                        Width = asset.Width,
+                        Height = asset.Height,
+                        PivotX = asset.PivotX,
+                        PivotY = asset.PivotY,
+                        Scale = asset.Scale
+                    };
+                }
+            }
 
             return new ArtInfo()
             {
-                Pixels = pixels,
-                Width = width,
-                Height = height
+                Pixels = Array.Empty<uint>(),
+                Width = 0,
+                Height = 0
             };
         }
     }
@@ -228,5 +164,8 @@ namespace ClassicUO.Assets
         public Span<uint> Pixels;
         public int Width;
         public int Height;
+        public int PivotX;
+        public int PivotY;
+        public float Scale;
     }
 }

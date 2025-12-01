@@ -2,9 +2,9 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.IO;
-using ClassicUO.Assets;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -113,14 +113,25 @@ namespace ClassicUO.Game.GameObjects
             if (artInfo.Texture != null)
             {
                 ref var index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + 0x4000);
-                index.Width = (short)((artInfo.UV.Width >> 1) - 22);
-                index.Height = (short)(artInfo.UV.Height - 44);
+
+                float scaleFactor = artInfo.Scale > 0 ? artInfo.Scale : 1.0f;
+
+                if (artInfo.Pivot.X != 0 || artInfo.Pivot.Y != 0)
+                {
+                    index.Width = (short)(artInfo.Pivot.X * scaleFactor - 22);
+                    index.Height = (short)(artInfo.Pivot.Y * scaleFactor - 44);
+                }
+                else
+                {
+                    index.Width = (short)((artInfo.UV.Width * scaleFactor / 2) - 22);
+                    index.Height = (short)(artInfo.UV.Height * scaleFactor - 44);
+                }
 
                 x -= index.Width;
                 y -= index.Height;
 
                 var pos = new Vector2(x, y);
-                var scale = Vector2.One;
+                var scale = new Vector2(scaleFactor);
                 if (isWet)
                 {
                     batcher.Draw(
@@ -196,16 +207,27 @@ namespace ClassicUO.Game.GameObjects
             if (artInfo.Texture != null)
             {
                 ref var index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + 0x4000);
-                index.Width = (short)((artInfo.UV.Width >> 1) - 22);
-                index.Height = (short)(artInfo.UV.Height - 44);
+
+                float scaleFactor = artInfo.Scale > 0 ? artInfo.Scale : 1.0f;
+
+                if (artInfo.Pivot.X != 0 || artInfo.Pivot.Y != 0)
+                {
+                    index.Width = (short)(artInfo.Pivot.X * scaleFactor - 22);
+                    index.Height = (short)(artInfo.Pivot.Y * scaleFactor - 44);
+                }
+                else
+                {
+                    index.Width = (short)((artInfo.UV.Width * scaleFactor / 2) - 22);
+                    index.Height = (short)(artInfo.UV.Height * scaleFactor - 44);
+                }
 
                 batcher.Draw(
                     artInfo.Texture,
                     new Rectangle(
                         x - index.Width,
                         y - index.Height,
-                        artInfo.UV.Width,
-                        artInfo.UV.Height
+                        (int)(artInfo.UV.Width * scaleFactor),
+                        (int)(artInfo.UV.Height * scaleFactor)
                     ),
                     artInfo.UV,
                     hue,
@@ -237,8 +259,19 @@ namespace ClassicUO.Game.GameObjects
             if (artInfo.Texture != null)
             {
                 index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + 0x4000);
-                index.Width = (short)((artInfo.UV.Width >> 1) - 22);
-                index.Height = (short)(artInfo.UV.Height - 44);
+
+                float scaleFactor = artInfo.Scale > 0 ? artInfo.Scale : 1.0f;
+
+                if (artInfo.Pivot.X != 0 || artInfo.Pivot.Y != 0)
+                {
+                    index.Width = (short)(artInfo.Pivot.X * scaleFactor - 22);
+                    index.Height = (short)(artInfo.Pivot.Y * scaleFactor - 44);
+                }
+                else
+                {
+                    index.Width = (short)((artInfo.UV.Width * scaleFactor / 2) - 22);
+                    index.Height = (short)(artInfo.UV.Height * scaleFactor - 44);
+                }
 
                 x -= index.Width;
                 y -= index.Height;
@@ -250,7 +283,7 @@ namespace ClassicUO.Game.GameObjects
                     batcher.DrawShadow(artInfo.Texture, pos, artInfo.UV, false, depth + 0.25f);
                 }
 
-                var scale = Vector2.One;
+                var scale = new Vector2(scaleFactor);
                 if (isWet)
                 {
                     batcher.Draw(

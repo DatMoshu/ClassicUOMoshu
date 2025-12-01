@@ -1,13 +1,13 @@
 ﻿// SPDX-License-Identifier: BSD-2-Clause
 
-using ClassicUO.Renderer.Effects;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using ClassicUO.Renderer.Effects;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Renderer
 {
@@ -737,6 +737,7 @@ namespace ClassicUO.Renderer
 
             AddSprite(texture, sourceX, sourceY, sourceW, sourceH, position.X, position.Y, destW, destH, color, 0.0f, 0.0f, 0.0f, 1.0f, depth, 0);
         }
+
 
         public void Draw
         (

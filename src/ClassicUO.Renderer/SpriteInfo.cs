@@ -8,6 +8,8 @@ namespace ClassicUO.Renderer
         public Texture2D Texture;
         public Rectangle UV;
         public Point Center;
+        public Point Pivot;
+        public float Scale;
 
         public static readonly SpriteInfo Empty = new SpriteInfo { Texture = null };
     }
