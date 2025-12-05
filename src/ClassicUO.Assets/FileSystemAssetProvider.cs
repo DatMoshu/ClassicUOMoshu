@@ -16,6 +16,12 @@ namespace ClassicUO.Assets
 
         private readonly string _cachePath;
 
+        /// <summary>
+        /// Enable or disable DDS caching. Set to false to load only from PNG/TGA files.
+        /// Useful for testing and comparing performance/quality.
+        /// </summary>
+        public bool EnableDdsCache { get; set; } = false;
+
         public FileSystemAssetProvider(string basePath)
         {
             _overridesPath = Path.Combine(basePath, "Overrides");
@@ -200,31 +206,34 @@ namespace ClassicUO.Assets
             }
 
             // Check for cached DDS - use separate cache folders for each asset type
-            string typeFolder = type.ToString();
-            string typeCachePath = Path.Combine(_cachePath, typeFolder);
-            
-            // Ensure the type-specific cache directory exists
-            if (!Directory.Exists(typeCachePath))
+            if (EnableDdsCache)
             {
-                Directory.CreateDirectory(typeCachePath);
-            }
-            
-            string ddsName = $"{Path.GetFileNameWithoutExtension(path)}.dds";
-            string ddsPath = Path.Combine(typeCachePath, ddsName);
-
-            if (File.Exists(ddsPath))
-            {
-                // Check if DDS is newer than source
-                DateTime ddsTime = File.GetLastWriteTimeUtc(ddsPath);
-                DateTime srcTime = File.GetLastWriteTimeUtc(path);
-
-                if (ddsTime >= srcTime)
+                string typeFolder = type.ToString();
+                string typeCachePath = Path.Combine(_cachePath, typeFolder);
+                
+                // Ensure the type-specific cache directory exists
+                if (!Directory.Exists(typeCachePath))
                 {
-                    if (TryLoadDDS(ddsPath, out asset))
+                    Directory.CreateDirectory(typeCachePath);
+                }
+                
+                string ddsName = $"{Path.GetFileNameWithoutExtension(path)}.dds";
+                string ddsPath = Path.Combine(typeCachePath, ddsName);
+
+                if (File.Exists(ddsPath))
+                {
+                    // Check if DDS is newer than source
+                    DateTime ddsTime = File.GetLastWriteTimeUtc(ddsPath);
+                    DateTime srcTime = File.GetLastWriteTimeUtc(path);
+
+                    if (ddsTime >= srcTime)
                     {
-                        // Load metadata from source JSON if exists (DDS doesn't store our custom metadata)
-                        LoadMetadata(path, ref asset);
-                        return true;
+                        if (TryLoadDDS(ddsPath, out asset))
+                        {
+                            // Load metadata from source JSON if exists (DDS doesn't store our custom metadata)
+                            LoadMetadata(path, ref asset);
+                            return true;
+                        }
                     }
                 }
             }
@@ -253,8 +262,15 @@ namespace ClassicUO.Assets
 
                             LoadMetadata(path, ref asset);
 
-                            // Save to DDS Cache
-                            SaveToDDS(ddsPath, asset);
+                            // Save to DDS Cache (only if enabled)
+                            if (EnableDdsCache)
+                            {
+                                string typeFolder = type.ToString();
+                                string typeCachePath = Path.Combine(_cachePath, typeFolder);
+                                string ddsName = $"{Path.GetFileNameWithoutExtension(path)}.dds";
+                                string ddsPath = Path.Combine(typeCachePath, ddsName);
+                                SaveToDDS(ddsPath, asset);
+                            }
 
                             return true;
                         }
