@@ -199,9 +199,18 @@ namespace ClassicUO.Assets
                 }
             }
 
-            // Check for cached DDS
+            // Check for cached DDS - use separate cache folders for each asset type
+            string typeFolder = type.ToString();
+            string typeCachePath = Path.Combine(_cachePath, typeFolder);
+            
+            // Ensure the type-specific cache directory exists
+            if (!Directory.Exists(typeCachePath))
+            {
+                Directory.CreateDirectory(typeCachePath);
+            }
+            
             string ddsName = $"{Path.GetFileNameWithoutExtension(path)}.dds";
-            string ddsPath = Path.Combine(_cachePath, ddsName);
+            string ddsPath = Path.Combine(typeCachePath, ddsName);
 
             if (File.Exists(ddsPath))
             {
