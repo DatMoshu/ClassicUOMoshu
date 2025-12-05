@@ -14,9 +14,18 @@ namespace ClassicUO.Assets
         private readonly Dictionary<long, string> _assetMap = new Dictionary<long, string>();
         private FileSystemWatcher _watcher;
 
+        private readonly string _cachePath;
+
         public FileSystemAssetProvider(string basePath)
         {
-          _overridesPath = Path.Combine(basePath, "Overrides");
+            _overridesPath = Path.Combine(basePath, "Overrides");
+            _cachePath = Path.Combine(_overridesPath, "Cache");
+            
+            if (!Directory.Exists(_cachePath))
+            {
+                Directory.CreateDirectory(_cachePath);
+            }
+
             IndexFiles();
             SetupWatcher();
         }
@@ -190,6 +199,27 @@ namespace ClassicUO.Assets
                 }
             }
 
+            // Check for cached DDS
+            string ddsName = $"{Path.GetFileNameWithoutExtension(path)}.dds";
+            string ddsPath = Path.Combine(_cachePath, ddsName);
+
+            if (File.Exists(ddsPath))
+            {
+                // Check if DDS is newer than source
+                DateTime ddsTime = File.GetLastWriteTimeUtc(ddsPath);
+                DateTime srcTime = File.GetLastWriteTimeUtc(path);
+
+                if (ddsTime >= srcTime)
+                {
+                    if (TryLoadDDS(ddsPath, out asset))
+                    {
+                        // Load metadata from source JSON if exists (DDS doesn't store our custom metadata)
+                        LoadMetadata(path, ref asset);
+                        return true;
+                    }
+                }
+            }
+
             try
             {
                 // Retry loop for file locking issues (common with FileSystemWatcher)
@@ -212,40 +242,10 @@ namespace ClassicUO.Assets
                                 Height = image.Height
                             };
 
-                            // Try load JSON metadata
-                            string jsonPath = Path.ChangeExtension(path, ".json");
-                            if (File.Exists(jsonPath))
-                            {
-                                try
-                                {
-                                    string jsonString = File.ReadAllText(jsonPath);
-                                    var metadata = JsonSerializer.Deserialize(jsonString, AssetMetadataContext.Default.AssetMetadata);
+                            LoadMetadata(path, ref asset);
 
-                                    if (metadata != null && metadata.Rendering != null)
-                                    {
-                                        if (metadata.Rendering.Pivot != null)
-                                        {
-                                            asset.PivotX = metadata.Rendering.Pivot.X;
-                                            asset.PivotY = metadata.Rendering.Pivot.Y;
-                                        }
-                                        
-                                        if (metadata.Rendering.Scale > 0)
-                                        {
-                                            asset.Scale = metadata.Rendering.Scale;
-                                        }
-                                    }
-
-                                    if (metadata != null && metadata.Lighting != null)
-                                    {
-                                        asset.HasNormalMap = !string.IsNullOrEmpty(metadata.Lighting.NormalMap);
-                                        asset.IsEmissive = !string.IsNullOrEmpty(metadata.Lighting.EmissionMap);
-                                    }
-                                }
-                                catch
-                                {
-                                    // Ignore JSON errors
-                                }
-                            }
+                            // Save to DDS Cache
+                            SaveToDDS(ddsPath, asset);
 
                             return true;
                         }
@@ -263,6 +263,202 @@ namespace ClassicUO.Assets
             }
 
             return false;
+        }
+
+        private void LoadMetadata(string path, ref AssetData asset)
+        {
+            string jsonPath = Path.ChangeExtension(path, ".json");
+            if (File.Exists(jsonPath))
+            {
+                try
+                {
+                    string jsonString = File.ReadAllText(jsonPath);
+                    var metadata = JsonSerializer.Deserialize(jsonString, AssetMetadataContext.Default.AssetMetadata);
+
+                    if (metadata != null && metadata.Rendering != null)
+                    {
+                        if (metadata.Rendering.Pivot != null)
+                        {
+                            asset.PivotX = metadata.Rendering.Pivot.X;
+                            asset.PivotY = metadata.Rendering.Pivot.Y;
+                        }
+                        
+                        if (metadata.Rendering.Scale > 0)
+                        {
+                            asset.Scale = metadata.Rendering.Scale;
+                        }
+                    }
+
+                    if (metadata != null && metadata.Lighting != null)
+                    {
+                        asset.HasNormalMap = !string.IsNullOrEmpty(metadata.Lighting.NormalMap);
+                        asset.IsEmissive = !string.IsNullOrEmpty(metadata.Lighting.EmissionMap);
+                    }
+                }
+                catch
+                {
+                    // Ignore JSON errors
+                }
+            }
+        }
+
+        private bool TryLoadDDS(string path, out AssetData asset)
+        {
+            asset = default;
+            try
+            {
+                using (var fs = File.OpenRead(path))
+                using (var br = new BinaryReader(fs))
+                {
+                    uint magic = br.ReadUInt32();
+                    if (magic != 0x20534444) // 'DDS '
+                        return false;
+
+                    // DDS_HEADER
+                    uint size = br.ReadUInt32();
+                    uint flags = br.ReadUInt32();
+                    uint height = br.ReadUInt32();
+                    uint width = br.ReadUInt32();
+                    uint pitchOrLinearSize = br.ReadUInt32();
+                    uint depth = br.ReadUInt32();
+                    uint mipMapCount = br.ReadUInt32();
+                    fs.Seek(44, SeekOrigin.Current); // Reserved1[11]
+
+                    // DDS_PIXELFORMAT
+                    uint pfSize = br.ReadUInt32();
+                    uint pfFlags = br.ReadUInt32();
+                    uint fourCC = br.ReadUInt32();
+                    uint rgbBitCount = br.ReadUInt32();
+                    uint rBitMask = br.ReadUInt32();
+                    uint gBitMask = br.ReadUInt32();
+                    uint bBitMask = br.ReadUInt32();
+                    uint aBitMask = br.ReadUInt32();
+
+                    // Caps
+                    fs.Seek(16 + 4 + 4 + 4, SeekOrigin.Current); // Caps, Caps2, Caps3, Caps4, Reserved2
+
+                    // We only support uncompressed A8R8G8B8 for now
+                    if (pfFlags == 0x41 && rgbBitCount == 32 && rBitMask == 0x00FF0000 && bBitMask == 0x000000FF)
+                    {
+                         // Standard BGRA (A8R8G8B8)
+                    }
+                    else
+                    {
+                        return false; // Unsupported format
+                    }
+
+                    int pixelCount = (int)(width * height);
+                    var pixels = new uint[pixelCount];
+                    var byteData = br.ReadBytes(pixelCount * 4);
+                    
+                    // Convert BGRA bytes to uint (AABBGGRR in little endian is 0xAABBGGRR, but we need 0xAABBGGRR)
+                    // Wait, StbImage returns RGBA. ClassicUO uses uints which are usually 0xAABBGGRR (little endian) -> R G B A in memory?
+                    // Let's assume standard XNA/MonoGame Texture2D data order.
+                    // Actually, let's just read as uints.
+                    
+                    MemoryMarshal.Cast<byte, uint>(byteData).CopyTo(pixels);
+
+                    // If the saved data was BGRA, and we read it as uint on little endian:
+                    // B G R A -> 0xAARRGGBB. 
+                    // StbImage returns RGBA -> 0xAABBGGRR.
+                    // We need to match what StbImage returns.
+                    // If we save as BGRA, we read as BGRA.
+                    // Let's ensure SaveToDDS saves as BGRA (standard DDS).
+                    // And StbImage returns RGBA. So we need to swap R and B.
+
+                    for (int i = 0; i < pixels.Length; i++)
+                    {
+                        uint p = pixels[i];
+                        // 0xAARRGGBB (BGRA in memory) -> 0xAABBGGRR (RGBA in memory)
+                        // Swap R and B
+                        uint a = p & 0xFF000000;
+                        uint r = (p & 0x00FF0000) >> 16;
+                        uint g = p & 0x0000FF00;
+                        uint b = p & 0x000000FF;
+                        
+                        pixels[i] = a | (b << 16) | g | r;
+                    }
+
+                    asset = new AssetData
+                    {
+                        Pixels = pixels,
+                        Width = (int)width,
+                        Height = (int)height
+                    };
+
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void SaveToDDS(string path, AssetData asset)
+        {
+            try
+            {
+                using (var fs = File.Create(path))
+                using (var bw = new BinaryWriter(fs))
+                {
+                    bw.Write(0x20534444); // 'DDS '
+                    
+                    // DDS_HEADER
+                    bw.Write(124); // dwSize
+                    bw.Write(0x00001007); // dwFlags (CAPS | HEIGHT | WIDTH | PIXELFORMAT)
+                    bw.Write((uint)asset.Height);
+                    bw.Write((uint)asset.Width);
+                    bw.Write((uint)(asset.Width * 4)); // dwPitchOrLinearSize
+                    bw.Write(0); // dwDepth
+                    bw.Write(0); // dwMipMapCount
+                    for (int i = 0; i < 11; i++) bw.Write(0); // dwReserved1
+
+                    // DDS_PIXELFORMAT
+                    bw.Write(32); // dwSize
+                    bw.Write(0x00000041); // dwFlags (RGB | ALPHAPIXELS)
+                    bw.Write(0); // dwFourCC
+                    bw.Write(32); // dwRGBBitCount
+                    bw.Write(0x00FF0000); // dwRBitMask (Red)
+                    bw.Write(0x0000FF00); // dwGBitMask (Green)
+                    bw.Write(0x000000FF); // dwBBitMask (Blue)
+                    bw.Write(0xFF000000); // dwABitMask (Alpha)
+
+                    // DDS_CAPS
+                    bw.Write(0x00001000); // dwCaps (TEXTURE)
+                    bw.Write(0); // dwCaps2
+                    bw.Write(0); // dwCaps3
+                    bw.Write(0); // dwCaps4
+                    bw.Write(0); // dwReserved2
+
+                    // Pixel Data
+                    // Convert RGBA (0xAABBGGRR) to BGRA (0xAARRGGBB) for standard DDS
+                    var pixels = asset.Pixels;
+                    var bytes = new byte[pixels.Length * 4];
+                    
+                    for (int i = 0; i < pixels.Length; i++)
+                    {
+                        uint p = pixels[i];
+                        // 0xAABBGGRR -> 0xAARRGGBB
+                        byte a = (byte)((p & 0xFF000000) >> 24);
+                        byte b = (byte)((p & 0x00FF0000) >> 16);
+                        byte g = (byte)((p & 0x0000FF00) >> 8);
+                        byte r = (byte)(p & 0x000000FF);
+
+                        int idx = i * 4;
+                        bytes[idx] = b;
+                        bytes[idx + 1] = g;
+                        bytes[idx + 2] = r;
+                        bytes[idx + 3] = a;
+                    }
+
+                    bw.Write(bytes);
+                }
+            }
+            catch
+            {
+                // Ignore save errors
+            }
         }
 
         public bool HasAsset(int assetId, AssetType type)
