@@ -28,6 +28,7 @@ namespace ClassicUO.Game.UI.Gumps
         private const int WIDTH = 700;
         private const int HEIGHT = 500;
         private const int TEXTBOX_HEIGHT = 25;
+        private const int SCREEN_ZOOM_STEPS = 20;
 
         private static Texture2D _logoTexture2D;
         private Combobox _auraType;
@@ -36,6 +37,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         //experimental
         private Checkbox _autoOpenDoors, _autoOpenCorpse, _skipEmptyCorpse, _disableTabBtn, _disableCtrlQWBtn, _disableDefaultHotkeys, _disableArrowBtn, _disableAutoMove, _overrideContainerLocation, _smoothDoors, _showTargetRangeIndicator, _customBars, _customBarsBBG, _saveHealthbars;
+        private Checkbox _nameOverheadAlwaysOn, _nameOverheadShowHpBar;
         private HSliderBar _cellSize;
         private Checkbox _containerScaleItems, _containerDoubleClickToLoot, _relativeDragAnDropItems, _useLargeContianersGumps, _highlightContainersWhenMouseIsOver;
 
@@ -79,6 +81,7 @@ namespace ClassicUO.Game.UI.Gumps
                          _useShiftPathfind,
                          _alwaysRun,
                          _alwaysRunUnlessHidden,
+                         _fastRotation,
                          _showHpMobile,
                          _highlightByPoisoned,
                          _highlightByParalyzed,
@@ -129,6 +132,7 @@ namespace ClassicUO.Game.UI.Gumps
         // general
         private HSliderBar _sliderFPS, _circleOfTranspRadius;
         private HSliderBar _sliderSpeechDelay;
+        private HSliderBar _sliderScreenZoom;
         private HSliderBar _sliderZoom;
         private HSliderBar _soundsVolume, _musicVolume, _loginMusicVolume;
         private ClickableColorBox _speechColorPickerBox, _emoteColorPickerBox, _yellColorPickerBox, _whisperColorPickerBox, _partyMessageColorPickerBox, _guildMessageColorPickerBox, _allyMessageColorPickerBox, _chatMessageColorPickerBox, _partyAuraColorPickerBox;
@@ -515,6 +519,18 @@ namespace ClassicUO.Game.UI.Gumps
                     null,
                     ResGumps.AlwaysRunHidden,
                     _currentProfile.AlwaysRunUnlessHidden,
+                    startX,
+                    startY
+                )
+            );
+
+            section.Add
+            (
+                _fastRotation = AddCheckBox
+                (
+                    null,
+                    "Fast rotation",
+                    _currentProfile.FastRotation,
                     startX,
                     startY
                 )
@@ -1194,6 +1210,30 @@ namespace ClassicUO.Game.UI.Gumps
 
             section4.Add
             (
+                _nameOverheadAlwaysOn = AddCheckBox
+                (
+                    null,
+                    "Always show name overheads",
+                    _currentProfile.NameOverheadToggled,
+                    startX,
+                    startY
+                )
+            );
+
+            section4.Add
+            (
+                _nameOverheadShowHpBar = AddCheckBox
+                (
+                    null,
+                    "Show HP bar on name overheads",
+                    _currentProfile.NameOverheadShowHpBar,
+                    startX,
+                    startY
+                )
+            );
+
+            section4.Add
+            (
                 _enableDragSelect = AddCheckBox
                 (
                     null,
@@ -1691,6 +1731,19 @@ namespace ClassicUO.Game.UI.Gumps
 
             SettingsSection section2 = AddSettingsSection(box, "Zoom");
             section2.Y = section.Bounds.Bottom + 40;
+
+            _sliderScreenZoom = AddHSlider(
+                null,
+                -SCREEN_ZOOM_STEPS,
+                SCREEN_ZOOM_STEPS,
+                GetScreenZoom(Settings.GlobalSettings.ScreenScale),
+                startX,
+                startY,
+                250
+            );
+            section2.Add(AddLabel(null, ResGumps.ScreenZoom, startX, startY));
+            section2.AddRight(_sliderScreenZoom);
+
             section2.Add(AddLabel(null, ResGumps.DefaultZoom, startX, startY));
 
             var cameraZoomCount = (int)((camera.ZoomMax - camera.ZoomMin) / camera.ZoomStep);
@@ -3578,6 +3631,8 @@ namespace ClassicUO.Game.UI.Gumps
                     _dragSelectHumanoidsOnly.IsChecked = false;
                     _dragSelectHostileOnly.IsChecked = false;
                     _showTargetRangeIndicator.IsChecked = false;
+                    _nameOverheadAlwaysOn.IsChecked = false;
+                    _nameOverheadShowHpBar.IsChecked = true;
                     _customBars.IsChecked = false;
                     _customBarsBBG.IsChecked = false;
                     _autoOpenCorpse.IsChecked = false;
@@ -3631,6 +3686,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _enableBlackWhiteEffect.IsChecked = true;
                     Client.Game.Scene.Camera.Zoom = 1f;
                     _currentProfile.DefaultScale = 1f;
+                    _sliderScreenZoom.Value = 0;
                     _lightBar.Value = 0;
                     _enableLight.IsChecked = false;
                     _lightLevelType.SelectedIndex = 0;
@@ -3773,6 +3829,8 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.UseShiftToPathfind = _useShiftPathfind.IsChecked;
             _currentProfile.AlwaysRun = _alwaysRun.IsChecked;
             _currentProfile.AlwaysRunUnlessHidden = _alwaysRunUnlessHidden.IsChecked;
+            _currentProfile.FastRotation = _fastRotation.IsChecked;
+            MovementSpeed.FastRotation = _fastRotation.IsChecked;
             _currentProfile.ShowMobilesHP = _showHpMobile.IsChecked;
             _currentProfile.HighlightMobilesByPoisoned = _highlightByPoisoned.IsChecked;
             _currentProfile.HighlightMobilesByParalize = _highlightByParalyzed.IsChecked;
@@ -3943,6 +4001,12 @@ namespace ClassicUO.Game.UI.Gumps
             // video
             _currentProfile.EnableDeathScreen = _enableDeathScreen.IsChecked;
             _currentProfile.EnableBlackWhiteEffect = _enableBlackWhiteEffect.IsChecked;
+
+            Settings.GlobalSettings.ScreenScale = GetScreenScale(_sliderScreenZoom.Value);
+            if (Client.Game.ScreenScale != Settings.GlobalSettings.ScreenScale) {
+                Client.Game.ScreenScale = Settings.GlobalSettings.ScreenScale;
+                RecenterGump();
+            }
 
             var camera = Client.Game.Scene.Camera;
             _currentProfile.DefaultScale = camera.Zoom = (_sliderZoom.Value * camera.ZoomStep) + camera.ZoomMin;
@@ -4168,6 +4232,10 @@ namespace ClassicUO.Game.UI.Gumps
                     counterGump.IsEnabled = counterGump.IsVisible = _currentProfile.CounterBarEnabled;
                 }
             }
+            else if (counterGump != null)
+            {
+                counterGump.SetCellSize(_currentProfile.CounterBarCellSize);
+            }
 
             // experimental
             // Reset nested checkboxes if parent checkbox is unchecked
@@ -4209,6 +4277,8 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.OverrideContainerLocationSetting = _overrideContainerLocationSetting.SelectedIndex;
 
             _currentProfile.ShowTargetRangeIndicator = _showTargetRangeIndicator.IsChecked;
+            _currentProfile.NameOverheadToggled = _nameOverheadAlwaysOn.IsChecked;
+            _currentProfile.NameOverheadShowHpBar = _nameOverheadShowHpBar.IsChecked;
 
 
             bool updateHealthBars = _currentProfile.CustomBarsToggled != _customBars.IsChecked;
@@ -4837,6 +4907,36 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 _textbox.SetText(text);
             }
+        }
+
+        private float GetScreenScale(int zoom_slider_value) {
+            float screen_zoom_steps = SCREEN_ZOOM_STEPS;
+            float x = zoom_slider_value;
+
+            float screen_scale;
+            if (zoom_slider_value > 0) {
+                screen_scale = x/screen_zoom_steps + 1.0f;
+            } else {
+                screen_scale = 1.0f + 0.025f * x;
+            }
+            return screen_scale;
+        }
+
+        private int GetScreenZoom(float screen_scale) {
+            float screen_zoom_steps = SCREEN_ZOOM_STEPS;
+
+            int zoom_slider_value;
+            if (screen_scale > 1f) {
+                zoom_slider_value = (int)Math.Round(screen_zoom_steps * (screen_scale - 1f));
+            } else {
+                zoom_slider_value = (int)Math.Round(-screen_zoom_steps * 2 * (1f - screen_scale));
+            }
+            return zoom_slider_value;
+        }
+
+        private void RecenterGump() {
+            X = (Client.Game.ClientBounds.Width >> 1) - WIDTH/2;
+            Y = (Client.Game.ClientBounds.Height >> 1) - HEIGHT/2;
         }
     }
 }
