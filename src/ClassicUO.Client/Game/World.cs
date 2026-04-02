@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System.Collections.Generic;
 using System.Linq;
@@ -119,6 +119,8 @@ namespace ClassicUO.Game
 
         public JournalManager Journal { get; } = new JournalManager();
 
+        public VivoxManager VivoxManager { get; set; }
+
 
         public int MapIndex
         {
@@ -213,6 +215,9 @@ namespace ClassicUO.Game
             Mobiles.Add(Player);
 
             Log.Trace($"Player [0x{serial:X8}] created");
+
+            // Vivox: login with the character name once player enters world
+            VivoxManager?.OnPlayerEnterWorld(Player.Name ?? $"player_{serial:X8}");
         }
 
         public void ChangeSeason(Season season, int music)
@@ -390,6 +395,9 @@ namespace ClassicUO.Game
                 _effectManager.Update();
                 WorldTextManager.Update();
                 WMapManager.RemoveUnupdatedWEntity();
+
+                // Vivox: update 3D position every tick (internally throttled)
+                VivoxManager?.UpdatePosition(Player.X, Player.Y, Time.Ticks);
             }
         }
 
@@ -777,6 +785,8 @@ namespace ClassicUO.Game
 
         public void Clear()
         {
+            // Vivox: logout when player leaves the world
+            VivoxManager?.OnPlayerLeaveWorld();
             foreach (Mobile mobile in Mobiles.Values)
             {
                 RemoveMobile(mobile);

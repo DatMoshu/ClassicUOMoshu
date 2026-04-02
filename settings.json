@@ -1,6 +1,6 @@
 {
-  "username": "Moshu",
-  "password": "1-7C7D607C607B",
+  "username": "",
+  "password": "",
   "ip": "127.0.0.1",
   "port": 2593,
   "ignore_relay_ip": false,
@@ -17,16 +17,16 @@
     "Y": 0
   },
   "window_size": {
-    "X": 2560,
-    "Y": 1369
+    "X": 640,
+    "Y": 480
   },
-  "is_win_maximized": true,
-  "saveaccount": true,
-  "autologin": true,
+  "is_win_maximized": false,
+  "saveaccount": false,
+  "autologin": false,
   "reconnect": false,
   "reconnect_time": 1,
   "login_music": true,
-  "login_music_volume": 70,
+  "login_music_volume": 0,
   "fixed_time_step": true,
   "run_mouse_in_separate_thread": true,
   "force_driver": 0,

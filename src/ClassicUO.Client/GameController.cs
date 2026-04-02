@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game;
@@ -39,6 +39,7 @@ namespace ClassicUO
         private bool _suppressedDraw;
         private bool _pluginsInitialized = false;
         private float _displayScale;
+        private VivoxManager _vivoxManager;
 
         public GameController(IPluginHost pluginHost)
         {
@@ -146,6 +147,11 @@ namespace ClassicUO
 
             SetScene(new LoginScene(UO.World));
 #endif
+            // Initialize Vivox proximity voice chat
+            _vivoxManager = new VivoxManager();
+            _vivoxManager.Initialize();
+            UO.World.VivoxManager = _vivoxManager;
+
             SetWindowPositionBySettings();
         }
 
@@ -161,6 +167,9 @@ namespace ClassicUO
             Audio?.StopMusic();
             Settings.GlobalSettings.Save();
             Plugin.OnClosing();
+
+            // Shut down Vivox before unloading
+            _vivoxManager?.Shutdown();
 
             UO.Unload();
 
