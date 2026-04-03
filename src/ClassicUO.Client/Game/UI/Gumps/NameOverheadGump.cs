@@ -135,6 +135,12 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 string t = entity.Name;
 
+                // Append [Muted] tag if this player is on our mute list
+                if (entity is Mobile && World.VivoxManager?.IsSerialMuted(entity.Serial) == true)
+                {
+                    t += " [Muted]";
+                }
+
                 int width = Client.Game.UO.FileManager.Fonts.GetWidthUnicode(_renderedText.Font, t);
 
                 if (width > Constants.OBJECT_HANDLES_GUMP_WIDTH)
@@ -698,6 +704,23 @@ namespace ClassicUO.Game.UI.Gumps
                     if (filledWidth > 0)
                         batcher.Draw(SolidColorTextureCache.GetTexture(hpColor),
                             new Rectangle(barX, barY, filledWidth, barHeight), hueVector, barDepth + CHILD_LAYER_INCREMENT);
+                    return true;
+                });
+            }
+
+            // ── Voice Speaking Indicator ──
+            // Show a small green dot above the name when a nearby player is speaking on proximity
+            if (SerialHelper.IsMobile(LocalSerial) && World.VivoxManager?.IsSerialSpeaking(LocalSerial) == true)
+            {
+                int dotSize = 8;
+                int dotX = x + (Width / 2) - (dotSize / 2);
+                int dotY = y - dotSize - 2;
+                float dotDepth = layerDepth + CHILD_LAYER_INCREMENT * 4;
+
+                renderLists.AddGumpNoAtlas(batcher =>
+                {
+                    batcher.Draw(SolidColorTextureCache.GetTexture(Color.LimeGreen),
+                        new Rectangle(dotX, dotY, dotSize, dotSize), hueVector, dotDepth);
                     return true;
                 });
             }

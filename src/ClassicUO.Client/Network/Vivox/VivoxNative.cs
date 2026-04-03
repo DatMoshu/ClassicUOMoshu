@@ -148,6 +148,9 @@ public static class VivoxNative
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern int vx_req_session_set_3d_position_create(out IntPtr req);
 
+    [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int vx_req_session_set_participant_mute_for_me_create(out IntPtr req);
+
     // ── Response/Event Field Readers ──────────────────────────────────────────
     // vx_get_message_type (above) works for all messages.
     // For response return codes and event fields: read directly from the struct
@@ -286,6 +289,23 @@ public static class VivoxStructWriter
         Marshal.WriteIntPtr(req, 120, S(accountHandle));
     }
 
+    // ── Participant Mute For Me Request ─────────────────────────────────────
+    //
+    // struct vx_req_session_set_participant_mute_for_me (x64):
+    //   vx_req_base_t base           @ 0   (40 bytes)
+    //   char* session_handle         @ 40
+    //   char* participant_uri        @ 48
+    //   int mute                     @ 56  (1=mute, 0=unmute)
+    //   int scope                    @ 60  (0=mute_scope_all)
+
+    public static void SetParticipantMuteFields(IntPtr req, string sessionHandle, string participantUri, bool mute)
+    {
+        Marshal.WriteIntPtr(req, 40, S(sessionHandle));
+        Marshal.WriteIntPtr(req, 48, S(participantUri));
+        Marshal.WriteInt32(req, 56, mute ? 1 : 0);
+        Marshal.WriteInt32(req, 60, 0); // mute_scope_all
+    }
+
     // ── 3D Position Request ───────────────────────────────────────────────────
     //
     // struct vx_req_session_set_3d_position (x64, from VxcRequests.h):
@@ -414,14 +434,53 @@ public static class VivoxStructReader
     }
 
     // For evt_session_added (subtype == SessionAdded)
-    // vx_evt_session_added_t: 
-    // sessiongroup_handle @ 40
-    // session_handle      @ 48
-    // uri                 @ 56
+    // vx_evt_session_added_t:
+    // sessiongroup_handle @ 32 (after evt_base 28 + 4 pad)
+    // session_handle      @ 40
+    // uri                 @ 48
+    public static string GetSessionGroupHandle(IntPtr msg)
+    {
+        IntPtr ptr = Marshal.ReadIntPtr(msg, 32);
+        return ptr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(ptr);
+    }
+
     public static string GetSessionHandle(IntPtr msg)
+    {
+        IntPtr ptr = Marshal.ReadIntPtr(msg, 40);
+        return ptr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(ptr);
+    }
+
+    // For evt_participant_added / evt_participant_removed / evt_participant_updated
+    // vx_evt_participant_updated_t:
+    //   vx_evt_base_t base           @ 0   (28 bytes + 4 pad = 32)
+    //   sessiongroup_handle          @ 32  (ptr)
+    //   session_handle               @ 40  (ptr)
+    //   participant_uri              @ 48  (ptr)
+    //   is_moderator_muted           @ 56  (int)
+    //   is_speaking                  @ 60  (int)
+    //   volume                       @ 64  (int)
+    //   [4 bytes padding]            @ 68
+    //   energy                       @ 72  (double)
+
+    public static string GetParticipantUri(IntPtr msg)
     {
         IntPtr ptr = Marshal.ReadIntPtr(msg, 48);
         return ptr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(ptr);
+    }
+
+    public static string GetParticipantSessionHandle(IntPtr msg)
+    {
+        IntPtr ptr = Marshal.ReadIntPtr(msg, 40);
+        return ptr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(ptr);
+    }
+
+    public static bool GetParticipantSpeaking(IntPtr msg) =>
+        Marshal.ReadInt32(msg, 60) != 0;
+
+    public static double GetParticipantEnergy(IntPtr msg)
+    {
+        long bits = Marshal.ReadInt64(msg, 72);
+        return BitConverter.Int64BitsToDouble(bits);
     }
 
     // ── Diagnostic Helpers ────────────────────────────────────────────────────

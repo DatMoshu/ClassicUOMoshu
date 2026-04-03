@@ -2,6 +2,7 @@
 // Ported from prototypes/VivoxSpike into ClassicUO.
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -28,14 +29,17 @@ namespace ClassicUO.Network.Vivox
 
         private string _userId;
         private string _accountHandle;
-        private string _sessionHandle;
+
+        // Multi-session support: channelName → sessionHandle
+        private readonly Dictionary<string, string> _sessionHandles = new();
+        private string _proximitySessionHandle; // Shortcut for 3D position updates
 
         private CancellationTokenSource _pumpCts;
 
         public event Action<VxLoginState> LoginStateChanged;
-        public event Action<string> ParticipantJoined;
-        public event Action<string> ParticipantLeft;
-        public event Action<string, bool, double> SpeakingChanged;
+        public event Action<string, string> ParticipantJoined;  // (participantUri, sessionHandle)
+        public event Action<string, string> ParticipantLeft;    // (participantUri, sessionHandle)
+        public event Action<string, bool, double> SpeakingChanged; // (participantUri, isSpeaking, energy)
 
         public bool IsLoggedIn => _accountHandle != null;
 
@@ -128,11 +132,15 @@ namespace ClassicUO.Network.Vivox
                 Log.Warn($"[Vivox] Logout error: {ex.Message}");
             }
             _accountHandle = null;
-            _sessionHandle = null;
+            _sessionHandles.Clear();
+            _proximitySessionHandle = null;
             Log.Trace("[Vivox] Logged out.");
         }
 
         // ── Channel ───────────────────────────────────────────────────────────
+
+        // Track pending channel joins so SessionAdded can map handle → channel name
+        private readonly Dictionary<string, string> _pendingJoins = new(); // sgHandle → channelName
 
         public void JoinPositionalChannel(string channelName)
         {
@@ -143,6 +151,8 @@ namespace ClassicUO.Network.Vivox
 
             string channelUri = $"sip:confctl-d-{_config.Issuer}.{channelName}@{_config.Domain}";
             string sgHandle   = $"sg_{channelName}";
+
+            _pendingJoins[sgHandle] = channelName;
 
             Log.Trace($"[Vivox] Joining positional channel: {channelUri}");
             VivoxNative.vx_req_sessiongroup_add_session_create(out IntPtr req);
@@ -168,6 +178,8 @@ namespace ClassicUO.Network.Vivox
             string channelUri = $"sip:confctl-g-{_config.Issuer}.{channelName}@{_config.Domain}";
             string sgHandle   = $"sg_{channelName}";
 
+            _pendingJoins[sgHandle] = channelName;
+
             Log.Trace($"[Vivox] Joining group channel: {channelUri}");
             VivoxNative.vx_req_sessiongroup_add_session_create(out IntPtr req);
             VivoxStructWriter.SetAddSessionFields(
@@ -184,13 +196,42 @@ namespace ClassicUO.Network.Vivox
 
         public void UpdatePosition(double tileX, double tileY)
         {
-            if (_sessionHandle == null) return;
+            if (_proximitySessionHandle == null) return;
 
             VivoxNative.vx_req_session_set_3d_position_create(out IntPtr req);
-            VivoxStructWriter.SetPositionFields(req, _sessionHandle, tileX, 0.0, tileY);
+            VivoxStructWriter.SetPositionFields(req, _proximitySessionHandle, tileX, 0.0, tileY);
 
             VivoxNative.vx_issue_request(req);
         }
+
+        // ── Per-Player Mute ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Mutes or unmutes a specific participant for the local user across all sessions.
+        /// Uses vx_req_session_set_participant_mute_for_me.
+        /// </summary>
+        public void SetParticipantMuteForMe(string participantUri, bool mute)
+        {
+            foreach (var (_, sessionHandle) in _sessionHandles)
+            {
+                VivoxNative.vx_req_session_set_participant_mute_for_me_create(out IntPtr req);
+                VivoxStructWriter.SetParticipantMuteFields(req, sessionHandle, participantUri, mute);
+
+                int rc = VivoxNative.vx_issue_request(req);
+                if (rc != 0)
+                {
+                    Log.Warn($"[Vivox] SetParticipantMuteForMe failed: rc={rc}");
+                }
+            }
+
+            Log.Trace($"[Vivox] Participant {(mute ? "muted" : "unmuted")}: {participantUri}");
+        }
+
+        /// <summary>
+        /// Gets the session handle for a specific channel, or null if not joined.
+        /// </summary>
+        public string GetSessionHandle(string channelName) =>
+            _sessionHandles.TryGetValue(channelName, out var handle) ? handle : null;
 
         // ── Message Pump ──────────────────────────────────────────────────────
 
@@ -290,11 +331,62 @@ namespace ClassicUO.Network.Vivox
                     if (evtSubtype == (int)VxEventType.SessionAdded)
                     {
                         string handle = VivoxStructReader.GetSessionHandle(msg);
+                        string sgHandle = VivoxStructReader.GetSessionGroupHandle(msg);
                         if (handle != null)
                         {
-                            _sessionHandle = handle;
+                            // Map channel name → session handle using pending joins
+                            if (sgHandle != null && _pendingJoins.TryGetValue(sgHandle, out var channelName))
+                            {
+                                _sessionHandles[channelName] = handle;
+                                _pendingJoins.Remove(sgHandle);
+
+                                // First positional channel becomes the proximity handle
+                                if (_proximitySessionHandle == null && sgHandle.Contains("proximity"))
+                                {
+                                    _proximitySessionHandle = handle;
+                                }
+
+                                Log.Trace($"[Vivox] Session added: channel='{channelName}' handle='{handle}'");
+                            }
+                            else
+                            {
+                                Log.Trace($"[Vivox] Session added (unmapped): handle='{handle}'");
+                            }
+
                             VivoxStructWriter.CacheSessionHandle(handle);
-                            Log.Trace($"[Vivox] Session added: handle='{handle}'");
+                        }
+                    }
+
+                    if (evtSubtype == (int)VxEventType.ParticipantAdded)
+                    {
+                        string uri = VivoxStructReader.GetParticipantUri(msg);
+                        string sessHandle = VivoxStructReader.GetParticipantSessionHandle(msg);
+                        if (uri != null)
+                        {
+                            ParticipantJoined?.Invoke(uri, sessHandle);
+                            Log.Trace($"[Vivox] Participant joined: {uri}");
+                        }
+                    }
+
+                    if (evtSubtype == (int)VxEventType.ParticipantRemoved)
+                    {
+                        string uri = VivoxStructReader.GetParticipantUri(msg);
+                        string sessHandle = VivoxStructReader.GetParticipantSessionHandle(msg);
+                        if (uri != null)
+                        {
+                            ParticipantLeft?.Invoke(uri, sessHandle);
+                            Log.Trace($"[Vivox] Participant left: {uri}");
+                        }
+                    }
+
+                    if (evtSubtype == (int)VxEventType.ParticipantUpdated)
+                    {
+                        string uri = VivoxStructReader.GetParticipantUri(msg);
+                        if (uri != null)
+                        {
+                            bool speaking = VivoxStructReader.GetParticipantSpeaking(msg);
+                            double energy = VivoxStructReader.GetParticipantEnergy(msg);
+                            SpeakingChanged?.Invoke(uri, speaking, energy);
                         }
                     }
                     break;

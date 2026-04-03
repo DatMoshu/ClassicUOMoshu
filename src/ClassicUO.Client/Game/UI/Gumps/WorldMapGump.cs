@@ -86,6 +86,7 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _showPlayerName = true;
         private int _zoomIndex = 4;
         private bool _showGridIfZoomed = true;
+        private bool _showZoneLabels = true;
         private bool _allowPositionalTarget = false;
         private WMapMarker _gotoMarker;
 
@@ -341,6 +342,7 @@ namespace ClassicUO.Game.UI.Gumps
             _options["saveclose"] = new ContextMenuItemEntry(ResGumps.SaveClose, Dispose);
 
             _options["show_grid_if_zoomed"] = new ContextMenuItemEntry(ResGumps.GridIfZoomed, () => { _showGridIfZoomed = !_showGridIfZoomed; SaveSettings();  }, true, _showGridIfZoomed);
+            _options["show_zone_labels"] = new ContextMenuItemEntry("Zone Labels", () => { _showZoneLabels = !_showZoneLabels; SaveSettings(); }, true, _showZoneLabels);
 
             _options["reset_map_cache"] = new ContextMenuItemEntry(ResGumps.ResetMapsCache, () =>
             {
@@ -371,6 +373,7 @@ namespace ClassicUO.Game.UI.Gumps
             ContextMenuItemEntry zoneOptions = new ContextMenuItemEntry(ResGumps.MapZoneOptions);
 
             zoneOptions.Add(_options["show_grid_if_zoomed"]);
+            zoneOptions.Add(_options["show_zone_labels"]);
             zoneOptions.Add(new ContextMenuItemEntry(ResGumps.MapZoneReload, () => { LoadZones(); BuildContextMenu(); }));
             zoneOptions.Add(new ContextMenuItemEntry(""));
 
@@ -2771,6 +2774,27 @@ namespace ClassicUO.Game.UI.Gumps
                 Vector2 end = WorldPointToGumpPoint(zone.Vertices[j].X, zone.Vertices[j].Y, x, y, width, height, zoom);
 
                 batcher.DrawLine(texture, start, end, hueVector, 1, layerDepth);
+            }
+
+            // Draw zone label at the center of the bounding rectangle
+            if (!string.IsNullOrEmpty(zone.Label) && _showZoneLabels)
+            {
+                var center = WorldPointToGumpPoint(
+                    zone.BoundingRectangle.X + zone.BoundingRectangle.Width / 2,
+                    zone.BoundingRectangle.Y + zone.BoundingRectangle.Height / 2,
+                    x, y, width, height, zoom);
+
+                var labelSize = Fonts.Map1.MeasureString(zone.Label);
+                var labelX = center.X - labelSize.X / 2;
+                var labelY = center.Y - labelSize.Y / 2;
+
+                // Shadow
+                Vector3 shadowHue = new(0f, 1f, 1f);
+                batcher.DrawString(Fonts.Map1, zone.Label, (int)labelX + 1, (int)labelY + 1, shadowHue, layerDepth);
+
+                // Label text in zone color
+                Vector3 labelHue = ShaderHueTranslator.GetHueVector(0);
+                batcher.DrawString(Fonts.Map1, zone.Label, (int)labelX, (int)labelY, labelHue, layerDepth);
             }
         }
 

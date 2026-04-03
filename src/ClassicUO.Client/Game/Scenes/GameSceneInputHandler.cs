@@ -1133,6 +1133,27 @@ namespace ClassicUO.Game.Scenes
                 return;
             }
 
+            // ── Voice PTT Keys (handled before chat focus check) ──
+            // Only activate when chat is NOT in active typing mode
+            if (!UIManager.SystemChat.IsActive && !e.repeat && _world.VivoxManager != null)
+            {
+                switch (keycode)
+                {
+                    case SDL.SDL_Keycode.SDLK_V:
+                        _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Proximity);
+                        return;
+                    case SDL.SDL_Keycode.SDLK_B:
+                        _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Faction);
+                        return;
+                    case SDL.SDL_Keycode.SDLK_N:
+                        _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Guild);
+                        return;
+                    case SDL.SDL_Keycode.SDLK_M:
+                        _world.VivoxManager.ToggleMicMute();
+                        return;
+                }
+            }
+
             if (keycode == SDL.SDL_Keycode.SDLK_ESCAPE && _world.TargetManager.IsTargeting)
             {
                 _world.TargetManager.CancelTarget();
@@ -1367,6 +1388,14 @@ namespace ClassicUO.Game.Scenes
             if (!_world.InGame)
             {
                 return;
+            }
+
+            // ── Voice PTT Key Release ──
+            SDL.SDL_Keycode keyUp = (SDL.SDL_Keycode)e.key;
+            if (_world.VivoxManager != null &&
+                (keyUp == SDL.SDL_Keycode.SDLK_V || keyUp == SDL.SDL_Keycode.SDLK_B || keyUp == SDL.SDL_Keycode.SDLK_N))
+            {
+                _world.VivoxManager.EndTransmit();
             }
 
             if (
