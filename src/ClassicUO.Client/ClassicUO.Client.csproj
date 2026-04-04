@@ -84,6 +84,24 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="OllamaSharp" Version="5.1.7" />
+    <PackageReference Include="PortAudioSharp2" Version="1.0.4" />
+    <PackageReference Include="Vosk" Version="0.3.38" />
+    <PackageReference Include="Whisper.net" Version="1.9.0" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.0" />
+    <!-- Uncomment for GPU: <PackageReference Include="Whisper.net.Runtime.Cuda.Windows" Version="1.9.0" /> -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" />
+  </ItemGroup>
+
+  <Target Name="CopyModels" AfterTargets="Build">
+    <ItemGroup>
+      <VoiceModels Include="$(ProjectDir)..\..\Models\Voice\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VoiceModels)" DestinationFolder="$(OutputPath)Models\Voice\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
   <PropertyGroup>
     <_IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</_IsWindows>
     <_IsMacOS Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</_IsMacOS>

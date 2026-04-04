@@ -1133,22 +1133,23 @@ namespace ClassicUO.Game.Scenes
                 return;
             }
 
-            // ── Voice PTT Keys (handled before chat focus check) ──
-            // Only activate when chat is NOT in active typing mode
-            if (!UIManager.SystemChat.IsActive && !e.repeat && _world.VivoxManager != null)
+            // ── Voice PTT Keys ──
+            // F5-F8 are function keys — they never type characters into the chat box,
+            // so no IsActive guard needed.
+            if (!e.repeat && _world.VivoxManager != null)
             {
                 switch (keycode)
                 {
-                    case SDL.SDL_Keycode.SDLK_V:
+                    case SDL.SDL_Keycode.SDLK_F5:
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Proximity);
                         return;
-                    case SDL.SDL_Keycode.SDLK_B:
+                    case SDL.SDL_Keycode.SDLK_F6:
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Faction);
                         return;
-                    case SDL.SDL_Keycode.SDLK_N:
+                    case SDL.SDL_Keycode.SDLK_F7:
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Guild);
                         return;
-                    case SDL.SDL_Keycode.SDLK_M:
+                    case SDL.SDL_Keycode.SDLK_F8:
                         _world.VivoxManager.ToggleMicMute();
                         return;
                 }
@@ -1393,7 +1394,7 @@ namespace ClassicUO.Game.Scenes
             // ── Voice PTT Key Release ──
             SDL.SDL_Keycode keyUp = (SDL.SDL_Keycode)e.key;
             if (_world.VivoxManager != null &&
-                (keyUp == SDL.SDL_Keycode.SDLK_V || keyUp == SDL.SDL_Keycode.SDLK_B || keyUp == SDL.SDL_Keycode.SDLK_N))
+                (keyUp == SDL.SDL_Keycode.SDLK_F5 || keyUp == SDL.SDL_Keycode.SDLK_F6 || keyUp == SDL.SDL_Keycode.SDLK_F7))
             {
                 _world.VivoxManager.EndTransmit();
             }

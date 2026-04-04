@@ -16,6 +16,7 @@ using ClassicUO.Game.Scenes;
 using ClassicUO.Utility.Logging;
 using ClassicUO.Assets;
 using ClassicUO.Network;
+using ClassicUO.SpeechRecognition;
 
 namespace ClassicUO.Game
 {
@@ -121,6 +122,8 @@ namespace ClassicUO.Game
 
         public VivoxManager VivoxManager { get; set; }
 
+        public VoiceInteractionManager VoiceInteractionManager { get; } = new VoiceInteractionManager();
+
 
         public int MapIndex
         {
@@ -218,6 +221,10 @@ namespace ClassicUO.Game
 
             // Vivox: login with the character name once player enters world
             VivoxManager?.OnPlayerEnterWorld(Player.Name ?? $"player_{serial:X8}");
+
+            // Voice interaction: initialize and start after player is ready
+            VoiceInteractionManager.Initialize(this);
+            VoiceInteractionManager.Start();
         }
 
         public void ChangeSeason(Season season, int music)
@@ -787,6 +794,8 @@ namespace ClassicUO.Game
         {
             // Vivox: logout when player leaves the world
             VivoxManager?.OnPlayerLeaveWorld();
+
+            VoiceInteractionManager.Stop();
             foreach (Mobile mobile in Mobiles.Values)
             {
                 RemoveMobile(mobile);

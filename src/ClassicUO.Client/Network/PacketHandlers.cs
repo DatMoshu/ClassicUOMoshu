@@ -4727,6 +4727,19 @@ namespace ClassicUO.Network
 
                     break;
 
+                //===========================================================================================
+                //===========================================================================================
+                case 0x0102: // NPC voice line (UOWW)
+                {
+                    if (world.Player == null) break;
+                    uint npcSerial = p.ReadUInt32BE();
+                    int pathLen = p.ReadUInt8();
+                    string relPath = pathLen > 0 ? p.ReadASCII(pathLen) : string.Empty;
+                    if (!string.IsNullOrEmpty(relPath))
+                        ClassicUO.Game.Managers.NpcVoiceManager.Instance.Play(relPath);
+                    break;
+                }
+
                 default:
                     Log.Warn($"Unhandled 0xBF - sub: {cmd.ToHex()}");
 

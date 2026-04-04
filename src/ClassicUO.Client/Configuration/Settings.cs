@@ -92,6 +92,42 @@ namespace ClassicUO.Configuration
         
         [JsonPropertyName("files_override")] public string OverrideFile { get; set; }
 
+        // ── Voice / STT settings ────────────────────────────────────────────
+        [JsonPropertyName("enable_speech_recognition")] public bool SpeechRecognitionEnabled { get; set; }
+        [JsonPropertyName("stt_engine")] public string SttEngine { get; set; } = "vosk";
+        [JsonPropertyName("vosk_model")] public string VoskModelDirectory { get; set; } = string.Empty;
+        [JsonPropertyName("vosk_sample_rate")] public int VoskSampleRate { get; set; } = 16000;
+        [JsonPropertyName("confidence_threshold")] public float ConfidenceThreshold { get; set; } = 0.7f;
+
+        // ── TTS settings ────────────────────────────────────────────────────
+        [JsonPropertyName("tts_enabled")] public bool TtsEnabled { get; set; }
+        [JsonPropertyName("tts_engine")] public string TtsEngine { get; set; } = "kokoro";
+        [JsonPropertyName("tts_voice_id")] public string TtsVoiceId { get; set; } = "af_heart";
+        [JsonPropertyName("tts_volume")] public float TtsVolume { get; set; } = 0.8f;
+        [JsonPropertyName("tts_speed")] public float TtsSpeed { get; set; } = 1.0f;
+
+        // ── VAD settings ────────────────────────────────────────────────────
+        [JsonPropertyName("vad_threshold")] public float VadThreshold { get; set; } = 0.5f;
+        [JsonPropertyName("vad_min_speech_ms")] public int VadMinSpeechMs { get; set; } = 250;
+        [JsonPropertyName("vad_silence_ms")] public int VadSilenceMs { get; set; } = 700;
+
+        // ── LLM / Avatar settings ───────────────────────────────────────────
+        [JsonPropertyName("llm_base_url")] public string LlmBaseUrl { get; set; } = "http://localhost:11434";
+        [JsonPropertyName("llm_model")] public string LlmModel { get; set; } = "gemma4:e2b";
+        [JsonPropertyName("llm_max_history")] public int LlmMaxHistory { get; set; } = 20;
+
+        // ── Barge-in / NLP ──────────────────────────────────────────────────
+        [JsonPropertyName("barge_in_enabled")] public bool BargeInEnabled { get; set; }
+        [JsonPropertyName("nlp_intent_enabled")] public bool NlpIntentEnabled { get; set; } = true;
+        [JsonPropertyName("fuzzy_match_threshold")] public float FuzzyMatchThreshold { get; set; } = 0.85f;
+        [JsonPropertyName("voice_activation_mode")] public string VoiceActivationMode { get; set; } = "vad";
+        [JsonPropertyName("ptt_key")] public string PttKey { get; set; } = "None";
+
+        // ── Model paths (override defaults; empty = use Models/Voice/ defaults) ─
+        [JsonPropertyName("whisper_model_path")] public string WhisperModelPath { get; set; } = string.Empty;
+        [JsonPropertyName("vad_model_path")] public string VadModelPath { get; set; } = string.Empty;
+        [JsonPropertyName("tts_model_path")] public string TtsModelPath { get; set; } = string.Empty;
+
         public static string GetSettingsFilepath()
         {
             if (CustomSettingsFilepath != null)

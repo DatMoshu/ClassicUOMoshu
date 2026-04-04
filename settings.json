@@ -1,6 +1,6 @@
 {
-  "username": "",
-  "password": "",
+  "username": "Moshu",
+  "password": "1-7C7D607C607B",
   "ip": "127.0.0.1",
   "port": 2593,
   "ignore_relay_ip": false,
@@ -17,12 +17,12 @@
     "Y": 0
   },
   "window_size": {
-    "X": 640,
-    "Y": 480
+    "X": 2560,
+    "Y": 1369
   },
-  "is_win_maximized": false,
-  "saveaccount": false,
-  "autologin": false,
+  "is_win_maximized": true,
+  "saveaccount": true,
+  "autologin": true,
   "reconnect": false,
   "reconnect_time": 1,
   "login_music": true,
@@ -36,5 +36,29 @@
   "plugins": [
     "./Assistant/Razor.dll"
   ],
-  "files_override": null
+  "files_override": null,
+  "enable_speech_recognition": true,
+  "stt_engine": "vosk",
+  "vosk_model": "D:\\_repos2026\\UltimaOnlineWorldWar\\tools\\vosk-model-en-us-0.22-lgraph",
+  "vosk_sample_rate": 16000,
+  "confidence_threshold": 0.7,
+  "tts_enabled": false,
+  "tts_engine": "kokoro",
+  "tts_voice_id": "af_heart",
+  "tts_volume": 0.8,
+  "tts_speed": 1,
+  "vad_threshold": 0.5,
+  "vad_min_speech_ms": 250,
+  "vad_silence_ms": 700,
+  "llm_base_url": "http://localhost:11434",
+  "llm_model": "gemma4:e2b",
+  "llm_max_history": 20,
+  "barge_in_enabled": false,
+  "nlp_intent_enabled": true,
+  "fuzzy_match_threshold": 0.85,
+  "voice_activation_mode": "vad",
+  "ptt_key": "None",
+  "whisper_model_path": "",
+  "vad_model_path": "",
+  "tts_model_path": ""
 }
