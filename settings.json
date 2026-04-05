@@ -13,7 +13,7 @@
   "fps": 60,
   "screen_scale": 1,
   "window_position": {
-    "X": 0,
+    "X": 3829,
     "Y": 0
   },
   "window_size": {
@@ -58,7 +58,16 @@
   "fuzzy_match_threshold": 0.85,
   "voice_activation_mode": "vad",
   "ptt_key": "None",
-  "whisper_model_path": "",
+  "mic_device": 0,
+  "mic_capture_rate": 48000,
+  "mic_capture_channels": 2,
+  "whisper_model_path": "D:\\_repos2026\\UltimaOnlineWorldWar\\tools\\whisper-base.en.bin",
   "vad_model_path": "",
-  "tts_model_path": ""
+  "tts_model_path": "",
+  "mic_always_on": true,
+  "inference_mode_enabled": true,
+  "inference_backend": "llm",
+  "inference_auto_execute_ms": 1500,
+  "recall_safe_word": "",
+  "recall_rune_serial": 0
 }

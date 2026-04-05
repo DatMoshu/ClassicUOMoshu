@@ -6,12 +6,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ClassicUO.Network.Vivox;
 using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.Managers
 {
+    [JsonSerializable(typeof(List<string>))]
+    internal sealed partial class VivoxJsonContext : JsonSerializerContext { }
+
     /// <summary>
     /// Voice channel the player is currently transmitting on.
     /// </summary>
@@ -492,7 +496,7 @@ namespace ClassicUO.Game.Managers
                 if (!File.Exists(path)) return;
 
                 var json = File.ReadAllText(path);
-                var list = JsonSerializer.Deserialize<List<string>>(json);
+                var list = JsonSerializer.Deserialize(json, VivoxJsonContext.Default.ListString);
                 if (list != null)
                 {
                     foreach (var name in list)
@@ -519,7 +523,7 @@ namespace ClassicUO.Game.Managers
                     Directory.CreateDirectory(dir);
                 }
 
-                var json = JsonSerializer.Serialize(new List<string>(_mutedParticipants));
+                var json = JsonSerializer.Serialize(new List<string>(_mutedParticipants), VivoxJsonContext.Default.ListString);
                 File.WriteAllText(MuteListPath, json);
             }
             catch (Exception ex)

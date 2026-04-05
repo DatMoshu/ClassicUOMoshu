@@ -17,7 +17,6 @@ namespace ClassicUO.SpeechRecognition.Engines
     {
         private VoskRecognizer _recognizer;
         private Vosk.Model _model;
-        private float _confidenceThreshold;
         private bool _disposed;
 
         public bool IsLoaded => _recognizer != null;
@@ -25,19 +24,28 @@ namespace ClassicUO.SpeechRecognition.Engines
         public event EventHandler<SttResult> PartialResultAvailable;
         public event EventHandler<SttResult> FinalResultAvailable;
 
-        public VoskSttEngine(float confidenceThreshold = 0.7f)
-        {
-            _confidenceThreshold = confidenceThreshold;
-        }
+        public VoskSttEngine() { }
 
         public Task LoadModelAsync(string modelPath, float sampleRate)
         {
+            // Validate path BEFORE hitting native code.
+            // Vosk's vosk_model_new() returns a null handle on failure (no managed exception),
+            // and the subsequent new VoskRecognizer() then crashes with 0xC0000005.
+            if (string.IsNullOrWhiteSpace(modelPath) || modelPath == @"path/to/modelfolder")
+                throw new ArgumentException($"Vosk model path is not configured. Set 'vosk_model' in settings.json.");
+
+            if (!System.IO.Directory.Exists(modelPath))
+                throw new System.IO.DirectoryNotFoundException(
+                    $"Vosk model directory not found: '{modelPath}'. " +
+                    $"Update 'vosk_model' in settings.json to the folder containing am/, graph/, etc.");
+
             return Task.Run(() =>
             {
                 Vosk.Vosk.SetLogLevel(0);
                 _model = new Vosk.Model(modelPath);
                 _recognizer = new VoskRecognizer(_model, sampleRate);
-                _recognizer.SetMaxAlternatives(5);
+                _recognizer.SetMaxAlternatives(0);
+                _recognizer.SetWords(true);
             });
         }
 
@@ -52,11 +60,17 @@ namespace ClassicUO.SpeechRecognition.Engines
 
             if (_recognizer.AcceptWaveform(buffer, bytesRecorded))
             {
-                ParseFinalResult(_recognizer.Result());
+                string json = _recognizer.Result();
+                Console.WriteLine($"[Vosk:Final] JSON={json}");
+                ParseFinalResult(json);
             }
             else
             {
-                ParsePartialResult(_recognizer.PartialResult());
+                string json = _recognizer.PartialResult();
+                // Only log partial JSON when it contains non-empty text to reduce noise
+                if (json != null && json.Length > 20)
+                    Console.WriteLine($"[Vosk:Partial] JSON={json}");
+                ParsePartialResult(json);
             }
         }
 
@@ -85,13 +99,13 @@ namespace ClassicUO.SpeechRecognition.Engines
             try
             {
                 using var doc = JsonDocument.Parse(json);
+
+                // Default Vosk format (SetMaxAlternatives(0)): {"text":"hello world"}
                 if (doc.RootElement.TryGetProperty("text", out var textEl))
                 {
                     string text = textEl.GetString()?.Trim();
                     if (!string.IsNullOrEmpty(text))
-                    {
                         FinalResultAvailable?.Invoke(this, new SttResult(text, 1.0f, isFinal: true));
-                    }
                 }
             }
             catch (JsonException) { /* malformed result — skip */ }
@@ -104,31 +118,12 @@ namespace ClassicUO.SpeechRecognition.Engines
             {
                 using var doc = JsonDocument.Parse(json);
 
-                // Partial result with alternatives (confidence scores)
-                if (doc.RootElement.TryGetProperty("alternatives", out var alternativesEl))
-                {
-                    foreach (var alt in alternativesEl.EnumerateArray())
-                    {
-                        if (!alt.TryGetProperty("text", out var textEl)) continue;
-                        if (!alt.TryGetProperty("confidence", out var confEl)) continue;
-
-                        string text = textEl.GetString()?.Trim();
-                        float confidence = confEl.GetSingle();
-
-                        if (string.IsNullOrEmpty(text) || confidence < _confidenceThreshold) continue;
-
-                        PartialResultAvailable?.Invoke(this, new SttResult(text, confidence, isFinal: false));
-                        break; // Use highest-confidence alternative
-                    }
-                }
-                // Simple partial result
-                else if (doc.RootElement.TryGetProperty("partial", out var partialEl))
+                // Default Vosk partial format: {"partial":"hello wor"}
+                if (doc.RootElement.TryGetProperty("partial", out var partialEl))
                 {
                     string text = partialEl.GetString()?.Trim();
                     if (!string.IsNullOrEmpty(text))
-                    {
                         PartialResultAvailable?.Invoke(this, new SttResult(text, 0f, isFinal: false));
-                    }
                 }
             }
             catch (JsonException) { /* malformed result — skip */ }

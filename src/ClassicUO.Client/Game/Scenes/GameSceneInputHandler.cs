@@ -1133,6 +1133,11 @@ namespace ClassicUO.Game.Scenes
                 return;
             }
 
+            // ── Inference HUD key intercept ──
+            // Forward [2], [3], [Esc] to ActionInferenceEngine while HUD is visible.
+            if (_world.VoiceInteractionManager?.InferenceEngine?.HandleKey(keycode) == true)
+                return;
+
             // ── Voice PTT Keys ──
             // F5-F8 are function keys — they never type characters into the chat box,
             // so no IsActive guard needed.

@@ -11,20 +11,20 @@ namespace ClassicUO.Game.Managers
             {
                 MacroType.Open, new Dictionary<MacroSubType, string[]>
                 {
-                    { MacroSubType.Paperdoll, new[] { "paperdoll", "open paperdoll", "show paperdoll" } },
-                    { MacroSubType.Configuration, new[] { "settings", "open settings", "configuration", "open configuration" } },
-                    { MacroSubType.Status, new[] { "status", "open status", "show status" } },
-                    { MacroSubType.Journal, new[] { "journal", "open journal", "show journal" } },
+                    { MacroSubType.Paperdoll, new[] { "paperdoll", "open paperdoll", "show paperdoll", "character", "open character", "show character", "paper doll", "open paper doll", "char screen" } },
+                    { MacroSubType.Configuration, new[] { "settings", "open settings", "configuration", "open configuration", "options", "open options", "show options", "game options", "game settings" } },
+                    { MacroSubType.Status, new[] { "status", "open status", "show status", "stats", "show stats", "my stats" } },
+                    { MacroSubType.Journal, new[] { "journal", "open journal", "show journal", "chat log", "show chat log" } },
                     { MacroSubType.Skills, new[] { "skills", "open skills", "show skills" } },
                     { MacroSubType.MageSpellbook, new[] { "spellbook", "open spellbook", "mage spellbook" } },
                     { MacroSubType.Chat, new[] { "chat", "open chat", "show chat" } },
-                    { MacroSubType.Backpack, new[] { "backpack", "open backpack", "show backpack" } },
+                    { MacroSubType.Backpack, new[] { "backpack", "open backpack", "show backpack", "inventory", "open inventory", "show inventory" } },
                     { MacroSubType.Overview, new[] { "overview", "open overview", "show overview" } },
-                    { MacroSubType.WorldMap, new[] { "world map", "open world map", "show world map" } },
+                    { MacroSubType.WorldMap, new[] { "world map", "open world map", "show world map", "map", "open map", "show map", "mini map", "minimap", "open minimap" } },
                     { MacroSubType.Mail, new[] { "mail", "open mail", "show mail" } },
                     { MacroSubType.PartyManifest, new[] { "party", "open party", "show party" } },
                     { MacroSubType.Guild, new[] { "guild", "open guild", "show guild" } },
-                    { MacroSubType.QuestLog, new[] { "quest log", "open quest log", "show quest log" } }
+                    { MacroSubType.QuestLog, new[] { "quest log", "open quest log", "show quest log", "quests", "open quests", "show quests", "my quests" } }
                 }
             },
             {

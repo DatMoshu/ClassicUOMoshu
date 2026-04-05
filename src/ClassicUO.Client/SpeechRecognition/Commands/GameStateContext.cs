@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using ClassicUO.Game;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.SpeechRecognition;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.SpeechRecognition.Commands
@@ -39,7 +40,7 @@ namespace ClassicUO.SpeechRecognition.Commands
             foreach (var mobile in world.Mobiles.Values)
             {
                 if (mobile.Distance <= 15 && mobile.Serial != world.Player.Serial)
-                    mobs.Add((mobile.Name ?? "Unknown", mobile.Distance, SpeechRecognitionManager.IsHostile(mobile)));
+                    mobs.Add((mobile.Name ?? "Unknown", mobile.Distance, VoiceInteractionManager.IsHostile(mobile)));
             }
             mobs.Sort((a, b) => a.Item2.CompareTo(b.Item2));
 

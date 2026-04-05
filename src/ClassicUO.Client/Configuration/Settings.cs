@@ -93,9 +93,9 @@ namespace ClassicUO.Configuration
         [JsonPropertyName("files_override")] public string OverrideFile { get; set; }
 
         // ── Voice / STT settings ────────────────────────────────────────────
-        [JsonPropertyName("enable_speech_recognition")] public bool SpeechRecognitionEnabled { get; set; }
+        [JsonPropertyName("enable_speech_recognition")] public bool SpeechRecognitionEnabled { get; set; } = true;
         [JsonPropertyName("stt_engine")] public string SttEngine { get; set; } = "vosk";
-        [JsonPropertyName("vosk_model")] public string VoskModelDirectory { get; set; } = string.Empty;
+        [JsonPropertyName("vosk_model")] public string VoskModelDirectory { get; set; } = "D:\\_repos2026\\UltimaOnlineWorldWar\\tools\\vosk-model-en-us-0.22-lgraph";
         [JsonPropertyName("vosk_sample_rate")] public int VoskSampleRate { get; set; } = 16000;
         [JsonPropertyName("confidence_threshold")] public float ConfidenceThreshold { get; set; } = 0.7f;
 
@@ -122,11 +122,36 @@ namespace ClassicUO.Configuration
         [JsonPropertyName("fuzzy_match_threshold")] public float FuzzyMatchThreshold { get; set; } = 0.85f;
         [JsonPropertyName("voice_activation_mode")] public string VoiceActivationMode { get; set; } = "vad";
         [JsonPropertyName("ptt_key")] public string PttKey { get; set; } = "None";
+        [JsonPropertyName("mic_device")] public int MicDevice { get; set; } = 0;
+        [JsonPropertyName("mic_capture_rate")] public int MicCaptureRate { get; set; } = 48000;
+        [JsonPropertyName("mic_capture_channels")] public int MicCaptureChannels { get; set; } = 2;
 
         // ── Model paths (override defaults; empty = use Models/Voice/ defaults) ─
         [JsonPropertyName("whisper_model_path")] public string WhisperModelPath { get; set; } = string.Empty;
         [JsonPropertyName("vad_model_path")] public string VadModelPath { get; set; } = string.Empty;
         [JsonPropertyName("tts_model_path")] public string TtsModelPath { get; set; } = string.Empty;
+
+        // ── Activation mode ──────────────────────────────────────────────────
+        /// <summary>When true, mic is always live (no PTT required). Useful for client 1 in local testing.</summary>
+        [JsonPropertyName("mic_always_on")] public bool MicAlwaysOn { get; set; } = true;
+
+        // ── Action Inference settings ─────────────────────────────────────────
+        /// <summary>When true, voice transcripts are routed through the ActionInferenceEngine instead of CommandRouter.</summary>
+        [JsonPropertyName("inference_mode_enabled")] public bool InferenceModeEnabled { get; set; } = true;
+        /// <summary>"token" (built-in TokenScorer, zero latency) or "llm" (Ollama, higher accuracy).</summary>
+        [JsonPropertyName("inference_backend")] public string InferenceBackend { get; set; } = "llm";
+        /// <summary>Milliseconds before the top inferred action auto-executes. Range: 500–5000.</summary>
+        [JsonPropertyName("inference_auto_execute_ms")] public int InferenceAutoExecuteMs { get; set; } = 1500;
+
+        // ── Safe word recall ──────────────────────────────────────────────────
+        /// <summary>
+        /// A single distinct word/phrase that triggers instant emergency recall to a preset rune.
+        /// Leave empty to disable. Must not match confirm/cancel phrases.
+        /// Example: "hearthstone"
+        /// </summary>
+        [JsonPropertyName("recall_safe_word")] public string RecallSafeWord { get; set; } = "shit fuck";
+        /// <summary>UO object serial of the rune or runebook to auto-target when the safe word fires.</summary>
+        [JsonPropertyName("recall_rune_serial")] public uint RecallRuneSerial { get; set; } = 0;
 
         public static string GetSettingsFilepath()
         {

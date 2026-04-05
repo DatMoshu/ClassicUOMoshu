@@ -2,8 +2,11 @@
   "profiles": {
     "ClassicUO": {
       "commandName": "Project",
-      "commandLineArgs": "-skiploginscreen -uopath \"D:\\Games\\Electronic Arts\\Ultima Online Classic\""
+      "commandLineArgs": "-skiploginscreen -uopath \"D:\\Games\\Electronic Arts\\Ultima Online Classic\" -settings \"D:\\_repos2026\\UltimaOnlineWorldWar\\client\\ClassicUO\\settings.json\""
     },
-    "ClassicUO No SkipLoginScreen": { "commandName": "Project", "commandLineArgs": "-uopath \"D:\\Games\\Electronic Arts\\Ultima Online Classic\"" }
+    "ClassicUO No SkipLoginScreen": {
+      "commandName": "Project",
+      "commandLineArgs": "-uopath \"D:\\Games\\Electronic Arts\\Ultima Online Classic\" -settings \"D:\\_repos2026\\UltimaOnlineWorldWar\\client\\ClassicUO\\settings.json\""
+    }
   }
 }

@@ -13,19 +13,18 @@ using ClassicUO.SpeechRecognition.Interfaces;
 namespace ClassicUO.SpeechRecognition.Commands
 {
     /// <summary>
-    /// Ordered strategy pipeline for routing voice transcripts to game actions.
-    /// First matching strategy wins; all others are skipped.
+    /// Ordered strategy pipeline for routing final voice transcripts to game actions.
+    /// Partials are used only for control toggles (listening on/off, debug) — never
+    /// for command execution, which prevents duplicate firing as Vosk streams results.
     ///
-    /// Pipeline order (by priority):
+    /// Pipeline order for final results (by priority):
     ///   1. ListeningToggle  — "speech on/off"
-    ///   2. DebugToggle      — "speech debug on/off"
+    ///   2. AvatarLlm        — "hey avatar ..."
     ///   3. ExactCommand     — speechcommands.json prefix match
-    ///   4. FuzzyCommand     — Jaro-Winkler similarity matching
-    ///   5. MacroCommand     — 500+ SpeechMacroStrings mappings
-    ///   6. PetCommand       — pet/summon control
-    ///   7. UowwIntent       — NLP for territory/faction/army
-    ///   8. Question         — canned Q&A
-    ///   9. AvatarLlm        — LLM fallback (only in chat mode)
+    ///   4. MacroCommand     — SpeechMacroStrings mappings
+    ///   5. PetCommand       — pet/summon control
+    ///   6. UowwIntent       — NLP for territory/faction/army
+    ///   7. Question         — canned Q&A
     /// </summary>
     internal sealed class CommandRouter
     {
@@ -33,9 +32,24 @@ namespace ClassicUO.SpeechRecognition.Commands
         private readonly SpeechCommandsManager _commandsManager;
         private readonly SpeechAvatarManager _avatarManager;
         private readonly UowwCommandMap _uowwMap;
-        private bool _speechDebug;
+        private volatile bool _speechDebug;
+
+        // Dedup guard: prevent re-executing the same command within this window
+        private string _lastExecutedCommand = string.Empty;
+        private long _lastExecutedTickMs;
+        private const long DEDUP_WINDOW_MS = 2000;
 
         private static readonly Random _random = new Random();
+
+        // Phrases that confirm or cancel the ActionHud while it is showing — never route as commands
+        private static readonly HashSet<string> ConfirmationPhrases = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "yes", "accept", "confirm", "do it", "go", "ok", "okay"
+        };
+        private static readonly HashSet<string> CancellationPhrases = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "no", "cancel", "stop", "abort", "never mind", "nevermind"
+        };
 
         public CommandRouter(
             World world,
@@ -49,48 +63,60 @@ namespace ClassicUO.SpeechRecognition.Commands
             _uowwMap = uowwMap;
         }
 
+        // ── Public API ────────────────────────────────────────────────────────
+
         /// <summary>
-        /// Route a final (high-confidence) transcript through the strategy pipeline.
+        /// Route a final (high-confidence) transcript through the full strategy pipeline.
+        /// This is the only path that executes game commands.
         /// </summary>
         public bool RouteFullResult(string text)
         {
+            Console.WriteLine($"[Route:Full] text='{text}'  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
             if (string.IsNullOrWhiteSpace(text)) return false;
 
-            // Strip common Vosk prefix artefact
-            text = text.TrimStart("the ".ToCharArray()).Trim();
-
             if (RouteListeningToggle(text)) return true;
-            if (_avatarManager.HandleLlmPrompt(text)) return true;
 
-            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) return false;
+            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) { Console.WriteLine("[Route:Full] Blocked — SpeechRecognitionEnabled=false"); return false; }
             if (text.Length <= 1) return false;
 
-            if (_commandsManager.FindSpeechCommand(text)) return true;
-            if (RouteFuzzyCommand(text)) return true;
-            if (RouteMacroCommand(text)) return true;
+            // Ignore confirmation/cancellation phrases — handled by ActionHud
+            if (ConfirmationPhrases.Contains(text) || CancellationPhrases.Contains(text)) return false;
+
+            if (IsDuplicate(text)) return false;
+
+            if (_avatarManager.HandleLlmPrompt(text)) { RecordExecuted(text); return true; }
+            if (_commandsManager.FindSpeechCommand(text)) { RecordExecuted(text); return true; }
+            if (RouteMacroCommand(text)) { RecordExecuted(text); return true; }
+            if (RoutePetCommand(text)) return true; // RoutePetCommand manages its own dedup per key
+            if (RouteUowwIntent(text)) { RecordExecuted(text); return true; }
+            if (RouteQuestion(text)) { RecordExecuted(text); return true; }
 
             return false;
         }
 
         /// <summary>
-        /// Route a partial (confidence-gated) transcript.
+        /// Route a partial transcript through the full strategy pipeline.
+        /// Partials are the primary execution path for Vosk streaming mode —
+        /// final results only arrive after a silence gap, so commands must
+        /// be routable from partials for low-latency response.
         /// </summary>
         public bool RoutePartialResult(string text, float confidence)
         {
+            Console.WriteLine($"[Route:Partial] text='{text}' conf={confidence:F2}  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
             if (string.IsNullOrWhiteSpace(text)) return false;
-
             if (RouteDebugToggle(text)) return true;
             if (RouteListeningToggle(text)) return true;
 
-            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) return false;
+            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) { Console.WriteLine("[Route:Partial] Blocked — SpeechRecognitionEnabled=false"); return false; }
 
             if (_speechDebug) GameActions.Say("Heard: " + text);
-            if (_avatarManager.HandleLlmPrompt(text)) return true;
-            if (_commandsManager.FindSpeechCommand(text)) return true;
-            if (RoutePetCommand(text)) return true;
-            if (RouteUowwIntent(text)) return true;
-            if (RouteQuestion(text)) return true;
+            if (_avatarManager.HandleLlmPrompt(text)) { Console.WriteLine($"[Route:Partial] → AvatarLlm matched"); return true; }
+            if (_commandsManager.FindSpeechCommand(text)) { Console.WriteLine($"[Route:Partial] → SpeechCommand matched"); return true; }
+            if (RoutePetCommand(text)) { Console.WriteLine($"[Route:Partial] → PetCommand matched"); return true; }
+            if (RouteUowwIntent(text)) { Console.WriteLine($"[Route:Partial] → UowwIntent matched"); return true; }
+            if (RouteQuestion(text)) { Console.WriteLine($"[Route:Partial] → Question matched"); return true; }
 
+            Console.WriteLine($"[Route:Partial] No match for '{text}'");
             return false;
         }
 
@@ -137,16 +163,6 @@ namespace ClassicUO.SpeechRecognition.Commands
             return false;
         }
 
-        private bool RouteFuzzyCommand(string text)
-        {
-            if (!Settings.GlobalSettings.NlpIntentEnabled) return false;
-
-            // Build list of known command speech phrases for fuzzy matching
-            // This is intentionally lightweight — just tries the top N commands
-            // Phase 5+ can expand this with a prebuilt trie or indexed structure
-            return false; // placeholder — full impl uses SpeechCommandsManager.GetAllPhrases()
-        }
-
         private bool RouteMacroCommand(string text)
         {
             foreach (var macroType in SpeechMacroStrings.MacroSpeechCommands)
@@ -174,6 +190,14 @@ namespace ClassicUO.SpeechRecognition.Commands
                     if (!text.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
 
                     string key = petCommand.Key;
+
+                    // Per-command dedup: use the matched key, not the full transcript.
+                    // Different Vosk transcriptions of the same pet command (e.g. "attack" vs
+                    // "attack him") both map to the same key — dedup on the key prevents double-fire.
+                    string dedupKey = key.ToLowerInvariant();
+                    if (IsDuplicate(dedupKey)) return true; // suppress silently
+                    RecordExecuted(dedupKey);
+
                     if (!key.Contains("closest", StringComparison.OrdinalIgnoreCase) &&
                         !key.Contains("nearest", StringComparison.OrdinalIgnoreCase))
                         GameActions.Say(key.ToLowerInvariant());
@@ -215,6 +239,23 @@ namespace ClassicUO.SpeechRecognition.Commands
                 }
             }
             return false;
+        }
+
+        // ── Dedup guard ───────────────────────────────────────────────────────
+
+        private bool IsDuplicate(string text)
+        {
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (string.Equals(text, _lastExecutedCommand, StringComparison.OrdinalIgnoreCase)
+                && nowMs - _lastExecutedTickMs < DEDUP_WINDOW_MS)
+                return true;
+            return false;
+        }
+
+        private void RecordExecuted(string text)
+        {
+            _lastExecutedCommand = text;
+            _lastExecutedTickMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
