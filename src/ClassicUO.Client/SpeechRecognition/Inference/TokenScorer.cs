@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,21 +10,50 @@ namespace ClassicUO.SpeechRecognition.Inference
     /// <summary>
     /// Pure C# command scorer. Sub-millisecond, no external dependencies.
     ///
-    /// Composite score formula (max theoretical ≈ 7.3):
-    ///   exact_match     × 3.0  — any registered phrase matches exactly
+    /// Composite score formula (max theoretical ≈ 8.3):
+    ///   exact_match     × 3.0  — any registered phrase matches exactly (after article strip)
     ///   keyword_overlap × 2.0  — % of command's key terms present in transcript
     ///   fuzzy_token     × 1.5  — best Jaro-Winkler score across token pairs
-    ///   position_bonus  × 0.5  — first transcript word hits a command keyword
+    ///   position_bonus  × 0.5  — first 2 transcript words hit command keywords
     ///   recency_bonus   × 0.3  — command was executed in last 60 seconds
+    ///   synonym_bonus   × 1.0  — transcript contains a known synonym for a command keyword
     /// </summary>
     internal sealed class TokenScorer
     {
         private const float MIN_SCORE = 0.4f;
-        private const float MAX_THEORETICAL = 7.3f;
+        private const float MAX_THEORETICAL = 8.3f;
         private const long RECENCY_WINDOW_MS = 60_000;
 
-        // Track recently executed commands for recency bonus
-        private readonly Dictionary<string, long> _recentlyExecuted = new(StringComparer.OrdinalIgnoreCase);
+        // Articles and filler words stripped from transcripts before scoring
+        private static readonly HashSet<string> ArticlesAndFiller = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "a", "an", "the", "please", "can", "could", "would", "do", "just", "now", "hey", "um", "uh"
+        };
+
+        // Synonym map: common alternate words → canonical command words
+        private static readonly Dictionary<string, string> Synonyms = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["bag"] = "backpack",
+            ["satchel"] = "backpack",
+            ["pack"] = "backpack",
+            ["hp"] = "heal",
+            ["health"] = "heal",
+            ["mend"] = "heal",
+            ["map"] = "warmap",
+            ["enemies"] = "hostile",
+            ["foes"] = "hostile",
+            ["troops"] = "army",
+            ["soldiers"] = "infantry",
+            ["horse"] = "cavalry",
+            ["mounted"] = "cavalry",
+            ["medics"] = "support",
+            ["healers"] = "support",
+            ["heavy"] = "assault",
+            ["siege"] = "assault",
+        };
+
+        // Track recently executed commands for recency bonus (thread-safe: written from game thread, read from Task.Run)
+        private readonly ConcurrentDictionary<string, long> _recentlyExecuted = new(StringComparer.OrdinalIgnoreCase);
 
         public void RecordExecuted(string command)
         {
@@ -39,7 +69,7 @@ namespace ClassicUO.SpeechRecognition.Inference
             if (string.IsNullOrWhiteSpace(transcript) || registry.Count == 0)
                 return InferenceResult.Empty;
 
-            string t = transcript.ToLowerInvariant().Trim();
+            string t = NormalizeTranscript(transcript);
             string[] tTokens = t.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -77,7 +107,7 @@ namespace ClassicUO.SpeechRecognition.Inference
             if (string.IsNullOrWhiteSpace(partial) || registry.Count == 0)
                 return (null, 0f);
 
-            string t = partial.ToLowerInvariant().Trim();
+            string t = NormalizeTranscript(partial);
             string[] tTokens = t.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -98,17 +128,42 @@ namespace ClassicUO.SpeechRecognition.Inference
             return (best, confidence);
         }
 
+        // ── Transcript normalization ──────────────────────────────────────────
+
+        /// <summary>
+        /// Strip articles, filler words, and apply synonym expansion.
+        /// "please cast a fireball" → "cast fireball"
+        /// "open the bag" → "open backpack"
+        /// </summary>
+        private static string NormalizeTranscript(string raw)
+        {
+            string lower = raw.ToLowerInvariant().Trim();
+            var tokens = lower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var result = new List<string>(tokens.Length);
+
+            foreach (var token in tokens)
+            {
+                if (ArticlesAndFiller.Contains(token)) continue;
+
+                // Apply synonym if known
+                result.Add(Synonyms.TryGetValue(token, out string syn) ? syn : token);
+            }
+
+            return string.Join(' ', result);
+        }
+
         // ── Scoring components ────────────────────────────────────────────────
 
         private float ComputeScore(string transcript, string[] tTokens,
             CommandRegistryEntry entry, long nowMs)
         {
-            float exact   = ExactMatchBonus(transcript, entry.Phrases) * 3.0f;
+            float exact   = ExactMatchBonus(transcript, entry.Phrases)  * 3.0f;
             float overlap = KeywordOverlap(transcript, entry.Keywords)  * 2.0f;
-            float fuzzy   = BestFuzzyToken(tTokens, entry.Phrases)      * 1.5f;
-            float pos     = PositionBonus(tTokens, entry.Keywords)       * 0.5f;
-            float recency = RecencyBonus(entry.Command, nowMs)           * 0.3f;
-            return exact + overlap + fuzzy + pos + recency;
+            float fuzzy   = BestFuzzyToken(tTokens, entry.Phrases)     * 1.5f;
+            float pos     = PositionBonus(tTokens, entry.Keywords)      * 0.5f;
+            float recency = RecencyBonus(entry.Command, nowMs)          * 0.3f;
+            float synonym = SynonymBonus(tTokens, entry.Keywords)       * 1.0f;
+            return exact + overlap + fuzzy + pos + recency + synonym;
         }
 
         private static float ExactMatchBonus(string transcript, string[] phrases)
@@ -146,12 +201,53 @@ namespace ClassicUO.SpeechRecognition.Inference
             return best;
         }
 
+        /// <summary>
+        /// Position bonus: reward when the first 2 transcript words match command keywords.
+        /// 1.0 if both match, 0.5 if only first matches, 0 otherwise.
+        /// </summary>
         private static float PositionBonus(string[] tTokens, string[] keywords)
         {
             if (tTokens.Length == 0 || keywords.Length == 0) return 0f;
-            string first = tTokens[0];
-            foreach (var kw in keywords)
-                if (first.Equals(kw, StringComparison.OrdinalIgnoreCase)) return 1.0f;
+
+            int matched = 0;
+            int check = Math.Min(2, tTokens.Length);
+            for (int i = 0; i < check; i++)
+            {
+                foreach (var kw in keywords)
+                {
+                    if (tTokens[i].Equals(kw, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matched++;
+                        break;
+                    }
+                }
+            }
+
+            return matched switch
+            {
+                2 => 1.0f,
+                1 => 0.5f,
+                _ => 0f
+            };
+        }
+
+        /// <summary>
+        /// Bonus when a synonym-expanded transcript token matches a command keyword
+        /// that the original transcript token did not match directly.
+        /// </summary>
+        private static float SynonymBonus(string[] tTokens, string[] keywords)
+        {
+            if (keywords.Length == 0) return 0f;
+            foreach (var token in tTokens)
+            {
+                // Only count if this token was a synonym expansion
+                if (!Synonyms.ContainsValue(token)) continue;
+                foreach (var kw in keywords)
+                {
+                    if (token.Equals(kw, StringComparison.OrdinalIgnoreCase))
+                        return 1.0f;
+                }
+            }
             return 0f;
         }
 

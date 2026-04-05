@@ -36,30 +36,16 @@ namespace ClassicUO.SpeechRecognition.Inference
     internal sealed class ActionInferenceEngine : IDisposable
     {
         private const float EAGER_THRESHOLD = 0.85f;
-        private const long DEDUP_WINDOW_MS = 2000;
 
         private readonly World _world;
         private readonly TokenScorer _tokenScorer = new TokenScorer();
+        private readonly DedupGuard _eagerDedup = new DedupGuard();
         private LlmScorer _llmScorer;
         private IReadOnlyList<CommandRegistryEntry> _registry;
 
         // Active HUD gump — null when hidden
         private ActionHudGump _activeHud;
         private readonly object _hudLock = new object();
-
-        // Dedup guard
-        private string _lastEagerCommand = string.Empty;
-        private long _lastEagerTickMs;
-
-        // Confirmation/cancellation phrases checked while HUD is open
-        private static readonly HashSet<string> ConfirmPhrases = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "yes", "accept", "confirm", "do it", "go", "ok", "okay"
-        };
-        private static readonly HashSet<string> CancelPhrases = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "no", "cancel", "stop", "abort", "never mind", "nevermind"
-        };
 
         private bool _disposed;
 
@@ -99,12 +85,13 @@ namespace ClassicUO.SpeechRecognition.Inference
             // Voice confirm/cancel while HUD is showing
             if (_activeHud != null)
             {
-                if (ConfirmPhrases.Contains(text.Trim()))
+                string trimmed = text.Trim();
+                if (VoicePhrases.Confirm.Contains(trimmed))
                 {
                     _activeHud?.ExecuteTop();
                     return;
                 }
-                if (CancelPhrases.Contains(text.Trim()))
+                if (VoicePhrases.Cancel.Contains(trimmed))
                 {
                     _activeHud?.Cancel();
                     return;
@@ -119,14 +106,12 @@ namespace ClassicUO.SpeechRecognition.Inference
             if (entry == null || !entry.IsEager) return;
             if (confidence < EAGER_THRESHOLD) return;
 
-            // Dedup: don't fire the same command twice in 2 seconds from partial alone
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (string.Equals(entry.Command, _lastEagerCommand, StringComparison.OrdinalIgnoreCase)
-                && nowMs - _lastEagerTickMs < DEDUP_WINDOW_MS)
-                return;
+            // Combat context check — skip if command doesn't match current combat state
+            if (!IsAllowedByCombatContext(entry)) return;
 
-            _lastEagerCommand = entry.Command;
-            _lastEagerTickMs = nowMs;
+            // Dedup: don't fire the same command twice in 2 seconds from partial alone
+            if (_eagerDedup.CheckAndRecord(entry.Command))
+                return;
 
             // Close any open HUD and execute immediately
             CloseHud();
@@ -147,9 +132,7 @@ namespace ClassicUO.SpeechRecognition.Inference
             if (string.IsNullOrWhiteSpace(text) || _registry == null) return;
 
             // If an eager command fired recently, suppress the HUD entirely for this utterance.
-            // (Previous bug: compared transcript text to command string — they never matched.)
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (!string.IsNullOrEmpty(_lastEagerCommand) && nowMs - _lastEagerTickMs < DEDUP_WINDOW_MS)
+            if (_eagerDedup.FiredRecently())
                 return;
 
             SetState(SpeechInferenceState.Thinking, text);
@@ -248,21 +231,35 @@ namespace ClassicUO.SpeechRecognition.Inference
                 ClassicUO.Game.Data.TextType.SYSTEM, false, MessageType.Regular);
         }
 
+        private bool IsAllowedByCombatContext(CommandRegistryEntry entry)
+        {
+            if (entry.Combat == CombatContext.Any) return true;
+            bool inCombat = _world?.Player?.InWarMode == true;
+            return entry.Combat == CombatContext.CombatOnly ? inCombat : !inCombat;
+        }
+
         private void ExecuteCommand(string command)
         {
             if (string.IsNullOrEmpty(command)) return;
+
+            // Heal commands: "heal:self", "heal:closest", "gheal:self", etc.
+            if (command.StartsWith("heal:", StringComparison.OrdinalIgnoreCase)
+                || command.StartsWith("gheal:", StringComparison.OrdinalIgnoreCase)
+                || command.StartsWith("cure:", StringComparison.OrdinalIgnoreCase))
+            {
+                ExecuteHealCommand(command);
+                return;
+            }
 
             if (command.StartsWith("saferecall:", StringComparison.OrdinalIgnoreCase))
             {
                 uint runeSerial = Settings.GlobalSettings.RecallRuneSerial;
                 if (runeSerial == 0 || _world?.Player == null) return;
 
-                // Dispatch Recall via the macro path (identical to "cast recall" voice command)
                 var recallMacro = new MacroObject(MacroType.CastSpell, MacroSubType.Recall);
                 _world.Macros.SetMacroToExecute(recallMacro);
                 _world.Macros.Update();
 
-                // After ~150 ms the targeting cursor is live — auto-click the preset rune
                 _ = Task.Delay(150).ContinueWith(_ =>
                     Client.Game.EnqueueAction(0, () => GameActions.DoubleClick(_world, runeSerial)));
                 return;
@@ -270,7 +267,6 @@ namespace ClassicUO.SpeechRecognition.Inference
 
             if (command.StartsWith("macro:", StringComparison.OrdinalIgnoreCase))
             {
-                // Parse "macro:MacroType:MacroSubType"
                 var parts = command.Split(':');
                 if (parts.Length == 3
                     && Enum.TryParse<MacroType>(parts[1], out var mt)
@@ -284,6 +280,71 @@ namespace ClassicUO.SpeechRecognition.Inference
             else if (_world?.Player != null)
             {
                 GameActions.Say(command);
+            }
+        }
+
+        private void ExecuteHealCommand(string command)
+        {
+            if (_world?.Player == null) return;
+
+            // Parse "heal:self", "gheal:closest", "cure:self", etc.
+            var parts = command.Split(':');
+            if (parts.Length != 2) return;
+
+            string spellType = parts[0].ToLowerInvariant();
+            string target = parts[1].ToLowerInvariant();
+
+            // Determine which spell to cast
+            MacroSubType spell = spellType switch
+            {
+                "heal" => MacroSubType.Heal,
+                "gheal" => MacroSubType.GreaterHeal,
+                "cure" => MacroSubType.Cure,
+                _ => MacroSubType.Heal
+            };
+
+            // Cast the spell
+            var macro = new MacroObject(MacroType.CastSpell, spell);
+            _world.Macros.SetMacroToExecute(macro);
+            _world.Macros.Update();
+
+            // Auto-target after spell cast delay
+            _ = Task.Delay(150).ContinueWith(_ =>
+                Client.Game.EnqueueAction(0, () => AutoTarget(target)));
+        }
+
+        private void AutoTarget(string target)
+        {
+            if (_world?.Player == null) return;
+
+            if (target == "self")
+            {
+                _world.TargetManager.Target(_world.Player.Serial);
+            }
+            else if (target == "closest")
+            {
+                // Find nearest friendly mobile (party member or pet)
+                uint nearestSerial = 0;
+                int nearestDist = int.MaxValue;
+
+                foreach (var mobile in _world.Mobiles.Values)
+                {
+                    if (mobile.Serial == _world.Player.Serial) continue;
+                    if (mobile.Distance >= nearestDist) continue;
+
+                    // Accept party members, pets, and non-hostile NPCs
+                    if (mobile.NotorietyFlag == Game.Data.NotorietyFlag.Ally
+                        || mobile.NotorietyFlag == Game.Data.NotorietyFlag.Innocent)
+                    {
+                        nearestDist = mobile.Distance;
+                        nearestSerial = mobile.Serial;
+                    }
+                }
+
+                if (nearestSerial != 0)
+                    _world.TargetManager.Target(nearestSerial);
+                else
+                    _world.TargetManager.Target(_world.Player.Serial); // fallback to self
             }
         }
 

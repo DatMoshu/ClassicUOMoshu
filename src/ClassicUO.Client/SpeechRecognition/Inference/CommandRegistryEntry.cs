@@ -3,6 +3,30 @@
 namespace ClassicUO.SpeechRecognition.Inference
 {
     /// <summary>
+    /// Combat context restriction for a voice command.
+    /// </summary>
+    internal enum CombatContext
+    {
+        /// <summary>Command works in any state.</summary>
+        Any,
+        /// <summary>Command only works while in war mode (combat).</summary>
+        CombatOnly,
+        /// <summary>Command only works while in peace mode (non-combat).</summary>
+        NonCombatOnly
+    }
+
+    /// <summary>
+    /// Voice command mode — determines which commands are available.
+    /// </summary>
+    internal enum VoiceCommandCategory
+    {
+        /// <summary>Available in both Simple and Advanced modes.</summary>
+        Core,
+        /// <summary>Only available in Advanced mode.</summary>
+        Advanced
+    }
+
+    /// <summary>
     /// A single entry in the command registry used by the TokenScorer and LlmScorer.
     /// Built once at startup from all speech command sources.
     /// </summary>
@@ -26,5 +50,11 @@ namespace ClassicUO.SpeechRecognition.Inference
         /// When false, the command always goes through the HUD confirmation flow.
         /// </summary>
         public bool IsEager { get; init; }
+
+        /// <summary>Combat context restriction. Defaults to Any.</summary>
+        public CombatContext Combat { get; init; } = CombatContext.Any;
+
+        /// <summary>Command category for Simple/Advanced mode filtering.</summary>
+        public VoiceCommandCategory Category { get; init; } = VoiceCommandCategory.Core;
     }
 }

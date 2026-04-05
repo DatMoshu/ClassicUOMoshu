@@ -135,6 +135,10 @@ namespace ClassicUO.Configuration
         /// <summary>When true, mic is always live (no PTT required). Useful for client 1 in local testing.</summary>
         [JsonPropertyName("mic_always_on")] public bool MicAlwaysOn { get; set; } = true;
 
+        // ── Voice command mode ────────────────────────────────────────────────
+        /// <summary>"simple" (gumps, spells, pets, recall only) or "advanced" (full UOWW war commands, LLM, avatar).</summary>
+        [JsonPropertyName("voice_command_mode")] public string VoiceCommandMode { get; set; } = "simple";
+
         // ── Action Inference settings ─────────────────────────────────────────
         /// <summary>When true, voice transcripts are routed through the ActionInferenceEngine instead of CommandRouter.</summary>
         [JsonPropertyName("inference_mode_enabled")] public bool InferenceModeEnabled { get; set; } = true;

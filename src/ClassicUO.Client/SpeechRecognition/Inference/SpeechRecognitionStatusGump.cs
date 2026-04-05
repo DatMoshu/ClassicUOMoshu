@@ -24,10 +24,10 @@ namespace ClassicUO.SpeechRecognition.Inference
     /// </summary>
     internal sealed class SpeechRecognitionStatusGump : Gump
     {
-        private const int WIDTH          = 220;
-        private const int HEIGHT         = 22;
-        private const int MARGIN         = 5;
-        private const int IDLE_TIMEOUT_MS = 3000;
+        private const int WIDTH          = 320;
+        private const int HEIGHT         = 36;
+        private const int MARGIN         = 8;
+        private const int IDLE_TIMEOUT_MS = 8000;
 
         private Label _statusLabel;
 
@@ -46,13 +46,13 @@ namespace ClassicUO.SpeechRecognition.Inference
             AcceptKeyboardInput   = false;
             IsVisible             = false; // hidden until first non-Idle state
 
-            PositionBottomLeft();
+            PositionUpperLeft();
 
             var bg = new AlphaBlendControl(0.72f) { X = 0, Y = 0, Width = WIDTH, Height = HEIGHT };
             Add(bg);
 
             _statusLabel = new Label(string.Empty, false, 0x0386, WIDTH - MARGIN * 2, 1)
-                { X = MARGIN, Y = 4 };
+                { X = MARGIN, Y = 10 };
             Add(_statusLabel);
         }
 
@@ -102,7 +102,7 @@ namespace ClassicUO.SpeechRecognition.Inference
                 return;
             }
 
-            string truncated = label.Length > 24 ? label[..24] + "…" : label;
+            string truncated = label.Length > 40 ? label[..40] + "…" : label;
 
             var (bullet, hue, displayText) = state switch
             {
@@ -118,11 +118,10 @@ namespace ClassicUO.SpeechRecognition.Inference
             IsVisible         = true;
         }
 
-        private void PositionBottomLeft()
+        private void PositionUpperLeft()
         {
-            int screenH = Client.Game.ClientBounds.Height;
-            X = 8;
-            Y = screenH - HEIGHT - 80;
+            X = 12;
+            Y = 12;
         }
     }
 }

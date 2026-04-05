@@ -31,9 +31,9 @@ namespace ClassicUO.SpeechRecognition.Inference
     /// </summary>
     internal sealed class ActionHudGump : Gump
     {
-        private const int WIDTH  = 350;
-        private const int HEIGHT = 110;
-        private const int MARGIN = 8;
+        private const int WIDTH  = 400;
+        private const int HEIGHT = 130;
+        private const int MARGIN = 10;
 
         private readonly InferenceResult _result;
         private readonly Action<int> _onExecute;
@@ -66,7 +66,7 @@ namespace ClassicUO.SpeechRecognition.Inference
             AcceptKeyboardInput  = false; // keys handled by ActionInferenceEngine via HandleKey()
             IsVisible           = true;
 
-            PositionBottomCenter();
+            PositionUpperLeft();
             BuildControls(out _timerLabel, out _barBg, out _barFill);
         }
 
@@ -125,12 +125,10 @@ namespace ClassicUO.SpeechRecognition.Inference
             Dispose();
         }
 
-        private void PositionBottomCenter()
+        private void PositionUpperLeft()
         {
-            int screenW = Client.Game.ClientBounds.Width;
-            int screenH = Client.Game.ClientBounds.Height;
-            X = (screenW - WIDTH)  / 2;
-            Y = screenH - HEIGHT - 80; // 80px above bottom (chat bar area)
+            X = 12;
+            Y = 56; // Below SpeechRecognitionStatusGump (12 + 36 + 8)
         }
 
         private void BuildControls(out Label timerLbl, out AlphaBlendControl barBg, out AlphaBlendControl barFill)
@@ -142,12 +140,12 @@ namespace ClassicUO.SpeechRecognition.Inference
             Add(bg);
 
             // ── Transcript echo ───────────────────────────────────────────────
-            string echo = _result.Transcript?.Length > 28
-                ? _result.Transcript[..28] + "…"
+            string echo = _result.Transcript?.Length > 38
+                ? _result.Transcript[..38] + "…"
                 : _result.Transcript ?? string.Empty;
 
             Add(new Label($"🎙 \"{echo}\"", false, 0x03B2, WIDTH - MARGIN * 2, 1) { X = MARGIN, Y = y });
-            y += 16;
+            y += 18;
 
             // ── Countdown bar ─────────────────────────────────────────────────
             barBg = new AlphaBlendControl(0.4f)
@@ -183,7 +181,7 @@ namespace ClassicUO.SpeechRecognition.Inference
                     { X = MARGIN, Y = y });
                 Add(new Label(pct, false, hue, 40, 1, align: TEXT_ALIGN_TYPE.TS_RIGHT)
                     { X = WIDTH - 44, Y = y });
-                y += 14;
+                y += 16;
             }
 
             // ── Footer: hints + timer ─────────────────────────────────────────

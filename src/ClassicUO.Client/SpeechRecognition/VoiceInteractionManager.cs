@@ -128,7 +128,8 @@ namespace ClassicUO.SpeechRecognition
             _commandRouter  = new CommandRouter(_world, _commandsManager, _avatarManager, uowwMap);
 
             // Inference engine (always built; activated only when InferenceModeEnabled)
-            var registry = CommandRegistry.Build();
+            var fullRegistry = CommandRegistry.Build();
+            var registry = CommandRegistry.FilterByMode(fullRegistry, settings.VoiceCommandMode);
             InferenceEngine = new ActionInferenceEngine(_world);
             InferenceEngine.Initialize(registry);
 

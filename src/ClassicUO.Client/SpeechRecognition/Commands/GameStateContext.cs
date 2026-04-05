@@ -31,6 +31,9 @@ namespace ClassicUO.SpeechRecognition.Commands
         /// <summary>True when the player is on the war map (facet 1).</summary>
         public bool IsOnWarMap => MapIndex == 1;
 
+        /// <summary>True when the player is in war mode (combat stance).</summary>
+        public bool InCombat { get; init; }
+
         public static GameStateContext Capture(World world)
         {
             if (world?.Player == null)
@@ -58,6 +61,7 @@ namespace ClassicUO.SpeechRecognition.Commands
                 PlayerZ = world.Player.Z,
                 MapIndex = world.MapIndex,
                 PlayerName = world.Player.Name ?? string.Empty,
+                InCombat = world.Player.InWarMode,
                 NearbyMobiles = mobs,
                 NearbyItems = items,
             };

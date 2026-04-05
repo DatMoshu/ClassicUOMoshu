@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
-using ClassicUO.SpeechRecognition.Interfaces;
 
 namespace ClassicUO.SpeechRecognition.Commands
 {
@@ -32,24 +29,10 @@ namespace ClassicUO.SpeechRecognition.Commands
         private readonly SpeechCommandsManager _commandsManager;
         private readonly SpeechAvatarManager _avatarManager;
         private readonly UowwCommandMap _uowwMap;
+        private readonly DedupGuard _dedup = new DedupGuard();
         private volatile bool _speechDebug;
 
-        // Dedup guard: prevent re-executing the same command within this window
-        private string _lastExecutedCommand = string.Empty;
-        private long _lastExecutedTickMs;
-        private const long DEDUP_WINDOW_MS = 2000;
-
         private static readonly Random _random = new Random();
-
-        // Phrases that confirm or cancel the ActionHud while it is showing — never route as commands
-        private static readonly HashSet<string> ConfirmationPhrases = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "yes", "accept", "confirm", "do it", "go", "ok", "okay"
-        };
-        private static readonly HashSet<string> CancellationPhrases = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "no", "cancel", "stop", "abort", "never mind", "nevermind"
-        };
 
         public CommandRouter(
             World world,
@@ -80,16 +63,16 @@ namespace ClassicUO.SpeechRecognition.Commands
             if (text.Length <= 1) return false;
 
             // Ignore confirmation/cancellation phrases — handled by ActionHud
-            if (ConfirmationPhrases.Contains(text) || CancellationPhrases.Contains(text)) return false;
+            if (VoicePhrases.IsConfirmOrCancel(text)) return false;
 
-            if (IsDuplicate(text)) return false;
+            if (_dedup.IsDuplicate(text)) return false;
 
-            if (_avatarManager.HandleLlmPrompt(text)) { RecordExecuted(text); return true; }
-            if (_commandsManager.FindSpeechCommand(text)) { RecordExecuted(text); return true; }
-            if (RouteMacroCommand(text)) { RecordExecuted(text); return true; }
+            if (_avatarManager.HandleLlmPrompt(text)) { _dedup.RecordExecuted(text); return true; }
+            if (_commandsManager.FindSpeechCommand(text)) { _dedup.RecordExecuted(text); return true; }
+            if (RouteMacroCommand(text)) { _dedup.RecordExecuted(text); return true; }
             if (RoutePetCommand(text)) return true; // RoutePetCommand manages its own dedup per key
-            if (RouteUowwIntent(text)) { RecordExecuted(text); return true; }
-            if (RouteQuestion(text)) { RecordExecuted(text); return true; }
+            if (RouteUowwIntent(text)) { _dedup.RecordExecuted(text); return true; }
+            if (RouteQuestion(text)) { _dedup.RecordExecuted(text); return true; }
 
             return false;
         }
@@ -195,8 +178,7 @@ namespace ClassicUO.SpeechRecognition.Commands
                     // Different Vosk transcriptions of the same pet command (e.g. "attack" vs
                     // "attack him") both map to the same key — dedup on the key prevents double-fire.
                     string dedupKey = key.ToLowerInvariant();
-                    if (IsDuplicate(dedupKey)) return true; // suppress silently
-                    RecordExecuted(dedupKey);
+                    if (_dedup.CheckAndRecord(dedupKey)) return true; // suppress silently
 
                     if (!key.Contains("closest", StringComparison.OrdinalIgnoreCase) &&
                         !key.Contains("nearest", StringComparison.OrdinalIgnoreCase))
@@ -239,23 +221,6 @@ namespace ClassicUO.SpeechRecognition.Commands
                 }
             }
             return false;
-        }
-
-        // ── Dedup guard ───────────────────────────────────────────────────────
-
-        private bool IsDuplicate(string text)
-        {
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (string.Equals(text, _lastExecutedCommand, StringComparison.OrdinalIgnoreCase)
-                && nowMs - _lastExecutedTickMs < DEDUP_WINDOW_MS)
-                return true;
-            return false;
-        }
-
-        private void RecordExecuted(string text)
-        {
-            _lastExecutedCommand = text;
-            _lastExecutedTickMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
