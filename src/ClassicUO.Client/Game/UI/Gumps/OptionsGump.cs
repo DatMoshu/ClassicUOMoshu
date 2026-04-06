@@ -58,6 +58,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         // sounds
         private Checkbox _enableSounds, _enableMusic, _footStepsSound, _combatMusic, _musicInBackground, _loginMusic;
+        private Checkbox _enableSpeechRecognition, _enableProximityChat;
 
         // fonts
         private FontSelector _fontSelectorChat;
@@ -1554,6 +1555,33 @@ namespace ClassicUO.Game.UI.Gumps
             );
 
             startY += _musicInBackground.Height + 2;
+
+            // ── Voice & Speech ──
+
+            AddLabel(rightArea, "--- Voice & Speech ---", startX, startY);
+            startY += 20;
+
+            _enableSpeechRecognition = AddCheckBox
+            (
+                rightArea,
+                "Enable Speech Recognition",
+                _currentProfile.EnableSpeechRecognition,
+                startX,
+                startY
+            );
+
+            startY += _enableSpeechRecognition.Height + 2;
+
+            _enableProximityChat = AddCheckBox
+            (
+                rightArea,
+                "Enable Proximity Chat",
+                _currentProfile.EnableProximityChat,
+                startX,
+                startY
+            );
+
+            startY += _enableProximityChat.Height + 2;
 
             Add(rightArea, PAGE);
         }
@@ -3669,6 +3697,8 @@ namespace ClassicUO.Game.UI.Gumps
                     _loginMusic.IsChecked = true;
                     _soundsVolume.IsVisible = _enableSounds.IsChecked;
                     _musicVolume.IsVisible = _enableMusic.IsChecked;
+                    _enableSpeechRecognition.IsChecked = true;
+                    _enableProximityChat.IsChecked = true;
 
                     break;
 
@@ -3950,6 +3980,10 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 Client.Game.Audio.StopMusic();
             }
+
+            _currentProfile.EnableSpeechRecognition = _enableSpeechRecognition.IsChecked;
+            Settings.GlobalSettings.SpeechRecognitionEnabled = _enableSpeechRecognition.IsChecked;
+            _currentProfile.EnableProximityChat = _enableProximityChat.IsChecked;
 
             if (!_currentProfile.EnableSound)
             {

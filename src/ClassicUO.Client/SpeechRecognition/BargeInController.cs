@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using ClassicUO.Configuration;
 using ClassicUO.Game;
+using ClassicUO.SpeechRecognition.Diagnostics;
 using ClassicUO.SpeechRecognition.Engines;
 using ClassicUO.SpeechRecognition.Interfaces;
 
@@ -93,7 +94,7 @@ namespace ClassicUO.SpeechRecognition
             _playback.Cancel();
 
             BargeInDetected?.Invoke(this, EventArgs.Empty);
-            Console.WriteLine("[Voice] Barge-in detected — interrupting Avatar.");
+            SpeechLog.Info(SpeechLogChannel.Voice, "Barge-in detected — interrupting Avatar.");
         }
 
         private void OnPlaybackComplete(object sender, EventArgs e)

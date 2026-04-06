@@ -4740,6 +4740,20 @@ namespace ClassicUO.Network
                     break;
                 }
 
+                case 0x0103: // Quadrant ownership update (UOWW)
+                {
+                    if (world.Player == null) break;
+                    int qCount = p.ReadUInt8();
+                    byte[] owners = new byte[qCount];
+                    for (int qi = 0; qi < qCount; qi++)
+                    {
+                        owners[qi] = p.ReadUInt8();
+                    }
+
+                    ClassicUO.Game.UI.Gumps.WorldMapGump.CacheQuadrantOwners(owners);
+                    break;
+                }
+
                 default:
                     Log.Warn($"Unhandled 0xBF - sub: {cmd.ToHex()}");
 

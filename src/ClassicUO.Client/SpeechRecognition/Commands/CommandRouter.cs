@@ -6,6 +6,7 @@ using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
+using ClassicUO.SpeechRecognition.Diagnostics;
 
 namespace ClassicUO.SpeechRecognition.Commands
 {
@@ -54,12 +55,12 @@ namespace ClassicUO.SpeechRecognition.Commands
         /// </summary>
         public bool RouteFullResult(string text)
         {
-            Console.WriteLine($"[Route:Full] text='{text}'  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
+            SpeechLog.Debug(SpeechLogChannel.Route, $"Full text='{text}'  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
             if (string.IsNullOrWhiteSpace(text)) return false;
 
             if (RouteListeningToggle(text)) return true;
 
-            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) { Console.WriteLine("[Route:Full] Blocked — SpeechRecognitionEnabled=false"); return false; }
+            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) { SpeechLog.Debug(SpeechLogChannel.Route, "Full blocked — SpeechRecognitionEnabled=false"); return false; }
             if (text.Length <= 1) return false;
 
             // Ignore confirmation/cancellation phrases — handled by ActionHud
@@ -85,21 +86,21 @@ namespace ClassicUO.SpeechRecognition.Commands
         /// </summary>
         public bool RoutePartialResult(string text, float confidence)
         {
-            Console.WriteLine($"[Route:Partial] text='{text}' conf={confidence:F2}  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
+            SpeechLog.Trace(SpeechLogChannel.Route, $"Partial text='{text}' conf={confidence:F2}  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
             if (string.IsNullOrWhiteSpace(text)) return false;
             if (RouteDebugToggle(text)) return true;
             if (RouteListeningToggle(text)) return true;
 
-            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) { Console.WriteLine("[Route:Partial] Blocked — SpeechRecognitionEnabled=false"); return false; }
+            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) { SpeechLog.Debug(SpeechLogChannel.Route, "Partial blocked — SpeechRecognitionEnabled=false"); return false; }
 
             if (_speechDebug) GameActions.Say("Heard: " + text);
-            if (_avatarManager.HandleLlmPrompt(text)) { Console.WriteLine($"[Route:Partial] → AvatarLlm matched"); return true; }
-            if (_commandsManager.FindSpeechCommand(text)) { Console.WriteLine($"[Route:Partial] → SpeechCommand matched"); return true; }
-            if (RoutePetCommand(text)) { Console.WriteLine($"[Route:Partial] → PetCommand matched"); return true; }
-            if (RouteUowwIntent(text)) { Console.WriteLine($"[Route:Partial] → UowwIntent matched"); return true; }
-            if (RouteQuestion(text)) { Console.WriteLine($"[Route:Partial] → Question matched"); return true; }
+            if (_avatarManager.HandleLlmPrompt(text)) { SpeechLog.Debug(SpeechLogChannel.Route, "Partial → AvatarLlm matched"); return true; }
+            if (_commandsManager.FindSpeechCommand(text)) { SpeechLog.Debug(SpeechLogChannel.Route, "Partial → SpeechCommand matched"); return true; }
+            if (RoutePetCommand(text)) { SpeechLog.Debug(SpeechLogChannel.Route, "Partial → PetCommand matched"); return true; }
+            if (RouteUowwIntent(text)) { SpeechLog.Debug(SpeechLogChannel.Route, "Partial → UowwIntent matched"); return true; }
+            if (RouteQuestion(text)) { SpeechLog.Debug(SpeechLogChannel.Route, "Partial → Question matched"); return true; }
 
-            Console.WriteLine($"[Route:Partial] No match for '{text}'");
+            SpeechLog.Trace(SpeechLogChannel.Route, $"Partial no match for '{text}'");
             return false;
         }
 

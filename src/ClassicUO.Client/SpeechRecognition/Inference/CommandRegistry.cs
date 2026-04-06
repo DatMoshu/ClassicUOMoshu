@@ -6,6 +6,7 @@ using System.Linq;
 using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Managers;
+using ClassicUO.SpeechRecognition.Diagnostics;
 
 namespace ClassicUO.SpeechRecognition.Inference
 {
@@ -63,7 +64,7 @@ namespace ClassicUO.SpeechRecognition.Inference
 
             if (ReservedPhrases.Contains(safeWord))
             {
-                Console.WriteLine($"[Voice] Safe word \"{safeWord}\" conflicts with a reserved phrase — ignoring.");
+                SpeechLog.Warn(SpeechLogChannel.Voice, $"Safe word \"{safeWord}\" conflicts with a reserved phrase — ignoring.");
                 return;
             }
 

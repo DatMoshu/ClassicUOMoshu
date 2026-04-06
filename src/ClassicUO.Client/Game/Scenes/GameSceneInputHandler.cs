@@ -24,6 +24,7 @@ namespace ClassicUO.Game.Scenes
             _boatIsMoving;
         private readonly bool[] _flags = new bool[5];
         private bool _followingMode;
+        private SpeakingBarGump _speakingBar;
         private uint _followingTarget;
         private uint _holdMouse2secOverItemTime;
         private bool _isMouseLeftDown;
@@ -1147,16 +1148,29 @@ namespace ClassicUO.Game.Scenes
                 {
                     case SDL.SDL_Keycode.SDLK_F5:
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Proximity);
+                        ShowSpeakingBar();
                         return;
                     case SDL.SDL_Keycode.SDLK_F6:
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Faction);
+                        ShowSpeakingBar();
                         return;
                     case SDL.SDL_Keycode.SDLK_F7:
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Guild);
+                        ShowSpeakingBar();
                         return;
                     case SDL.SDL_Keycode.SDLK_F8:
+                    {
                         _world.VivoxManager.ToggleMicMute();
+                        bool muted = _world.VivoxManager.IsMicMuted;
+                        string msg = muted ? "Microphone disabled" : "Microphone enabled";
+                        ushort hue = muted ? (ushort)0x0026 : (ushort)0x004F;
+
+                        _world.Journal.Add(msg, hue, "System", null, TextType.SYSTEM, true, MessageType.Regular);
+                        GameActions.Print(_world, msg, hue, MessageType.System);
+
+                        _speakingBar?.SetMuted(muted);
                         return;
+                    }
                 }
             }
 
@@ -1402,6 +1416,7 @@ namespace ClassicUO.Game.Scenes
                 (keyUp == SDL.SDL_Keycode.SDLK_F5 || keyUp == SDL.SDL_Keycode.SDLK_F6 || keyUp == SDL.SDL_Keycode.SDLK_F7))
             {
                 _world.VivoxManager.EndTransmit();
+                HideSpeakingBar();
             }
 
             if (
@@ -1560,6 +1575,28 @@ namespace ClassicUO.Game.Scenes
             _world.Macros.WaitingBandageTarget = false;
             _world.Macros.WaitForTargetTimer = 0;
             _world.Macros.Update();
+        }
+
+        // ── Speaking Bar Helpers ─────────────────────────────────────────────
+
+        private void ShowSpeakingBar()
+        {
+            if (_speakingBar == null || _speakingBar.IsDisposed)
+            {
+                _speakingBar = new SpeakingBarGump(_world);
+                UIManager.Add(_speakingBar);
+            }
+
+            _speakingBar.SetMuted(_world.VivoxManager.IsMicMuted);
+            _speakingBar.IsVisible = true;
+        }
+
+        private void HideSpeakingBar()
+        {
+            if (_speakingBar != null)
+            {
+                _speakingBar.IsVisible = false;
+            }
         }
     }
 }

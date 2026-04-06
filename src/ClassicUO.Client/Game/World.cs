@@ -225,6 +225,15 @@ namespace ClassicUO.Game
             // Voice interaction: initialize and start after player is ready
             VoiceInteractionManager.Initialize(this);
             VoiceInteractionManager.Start();
+
+            // Auto-show speech settings gump if speech or proximity chat is enabled
+            bool speechOn = Settings.GlobalSettings.SpeechRecognitionEnabled;
+            bool proxOn = ProfileManager.CurrentProfile?.EnableProximityChat ?? false;
+            if (speechOn || proxOn)
+            {
+                Client.Game.EnqueueAction(0, () =>
+                    UIManager.Add(new SpeechRecognition.Gumps.SpeechSettingsGump(this)));
+            }
         }
 
         public void ChangeSeason(Season season, int music)

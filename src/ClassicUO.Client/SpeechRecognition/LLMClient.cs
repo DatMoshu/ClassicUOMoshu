@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ClassicUO.SpeechRecognition.Diagnostics;
 using ClassicUO.SpeechRecognition.Interfaces;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -86,7 +87,7 @@ namespace ClassicUO.Game
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[LLM] Stream error: {ex.Message}");
+                SpeechLog.Error(SpeechLogChannel.Llm, $"Stream error: {ex.Message}");
                 yield break;
             }
 
@@ -135,31 +136,31 @@ namespace ClassicUO.Game
             string json = JsonSerializer.Serialize(payload, LlmJsonContext.Default.ChatRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            Console.WriteLine($"[LLM] POST {_chatUri} model={_model} prompt_len={prompt.Length}");
+            SpeechLog.Debug(SpeechLogChannel.Llm, $"POST {_chatUri} model={_model} prompt_len={prompt.Length}");
             try
             {
                 var response = await _httpClient.PostAsync(_chatUri, content, ct);
-                Console.WriteLine($"[LLM] HTTP {(int)response.StatusCode} {response.StatusCode}");
+                SpeechLog.Debug(SpeechLogChannel.Llm, $"HTTP {(int)response.StatusCode} {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
 
                 string responseContent = await response.Content.ReadAsStringAsync(ct);
-                Console.WriteLine($"[LLM] Raw response ({responseContent.Length} chars): {responseContent[..Math.Min(200, responseContent.Length)]}");
+                SpeechLog.Trace(SpeechLogChannel.Llm, $"Raw response ({responseContent.Length} chars): {responseContent[..Math.Min(200, responseContent.Length)]}");
 
                 var responseObject = JsonSerializer.Deserialize(responseContent, LlmJsonContext.Default.ChatReply);
                 string msg = responseObject?.Message?.Content ?? "No response from Ollama.";
-                Console.WriteLine($"[LLM] Parsed message ({msg.Length} chars): {msg[..Math.Min(100, msg.Length)]}");
+                SpeechLog.Debug(SpeechLogChannel.Llm, $"Parsed message ({msg.Length} chars): {msg[..Math.Min(100, msg.Length)]}");
 
                 _conversationHistory.Add(new Message { Role = "assistant", Content = msg });
                 return msg;
             }
             catch (OperationCanceledException e)
             {
-                Console.WriteLine($"[LLM] CANCELLED: {e.Message}");
+                SpeechLog.Debug(SpeechLogChannel.Llm, $"CANCELLED: {e.Message}");
                 return string.Empty;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[LLM] EXCEPTION {ex.GetType().Name}: {ex.Message}");
+                SpeechLog.Error(SpeechLogChannel.Llm, $"EXCEPTION {ex.GetType().Name}: {ex.Message}");
                 return $"Error: {ex.Message}";
             }
         }

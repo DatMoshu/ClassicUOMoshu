@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using ClassicUO.SpeechRecognition.Diagnostics;
 using ClassicUO.SpeechRecognition.Engines;
 using ClassicUO.SpeechRecognition.Interfaces;
 using NAudio.Wave;
@@ -96,11 +97,11 @@ namespace ClassicUO.SpeechRecognition
 
             // Log all available capture devices
             int deviceCount = WaveInEvent.DeviceCount;
-            Console.WriteLine($"[Audio] Available capture devices ({deviceCount} total):");
+            SpeechLog.Debug(SpeechLogChannel.Audio, $"Available capture devices ({deviceCount} total):");
             for (int i = 0; i < deviceCount; i++)
             {
                 var caps = WaveInEvent.GetCapabilities(i);
-                Console.WriteLine($"[Audio]   [{i}] {caps.ProductName} (ch={caps.Channels})");
+                SpeechLog.Debug(SpeechLogChannel.Audio, $"  [{i}] {caps.ProductName} (ch={caps.Channels})");
             }
 
             // Capture at the device's native rate and channel count.
@@ -116,7 +117,7 @@ namespace ClassicUO.SpeechRecognition
             string selectedName = deviceNumber >= 0 && deviceNumber < deviceCount
                 ? WaveInEvent.GetCapabilities(deviceNumber).ProductName
                 : "OS default (WAVE_MAPPER)";
-            Console.WriteLine($"[Audio] Using device [{deviceNumber}]: {selectedName} ({_captureChannels}ch 16-bit PCM at {_captureRate}Hz → STT at {_sttRate}Hz mono)");
+            SpeechLog.Info(SpeechLogChannel.Audio, $"Using device [{deviceNumber}]: {selectedName} ({_captureChannels}ch 16-bit PCM at {_captureRate}Hz → STT at {_sttRate}Hz mono)");
 
             _waveIn.DataAvailable += OnDataAvailable;
         }
@@ -211,7 +212,7 @@ namespace ClassicUO.SpeechRecognition
                 if (_audioChunkCount >= 20)
                 {
                     double avgRms = Math.Sqrt((double)_audioRmsAccum / _audioChunkCount);
-                    Console.WriteLine($"[Audio] chunks=20 avgRMS={avgRms:F0} (0=silence, >500=speech)");
+                    SpeechLog.Trace(SpeechLogChannel.Audio, $"chunks=20 avgRMS={avgRms:F0} (0=silence, >500=speech)");
                     _audioChunkCount = 0;
                     _audioRmsAccum   = 0;
                 }
@@ -315,7 +316,7 @@ namespace ClassicUO.SpeechRecognition
                         FinalResultAvailable?.Invoke(this, result);
                 }
                 catch (OperationCanceledException) { }
-                catch (Exception ex) { Console.WriteLine($"[STT] Transcription error: {ex.Message}"); }
+                catch (Exception ex) { SpeechLog.Error(SpeechLogChannel.Stt, $"Transcription error: {ex.Message}"); }
             }, ct);
         }
 

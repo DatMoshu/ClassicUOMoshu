@@ -4,6 +4,7 @@ using System;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using ClassicUO.SpeechRecognition.Diagnostics;
 using ClassicUO.SpeechRecognition.Interfaces;
 using Vosk;
 
@@ -61,7 +62,7 @@ namespace ClassicUO.SpeechRecognition.Engines
             if (_recognizer.AcceptWaveform(buffer, bytesRecorded))
             {
                 string json = _recognizer.Result();
-                Console.WriteLine($"[Vosk:Final] JSON={json}");
+                SpeechLog.Debug(SpeechLogChannel.Stt, $"Vosk final JSON={json}");
                 ParseFinalResult(json);
             }
             else
@@ -69,7 +70,7 @@ namespace ClassicUO.SpeechRecognition.Engines
                 string json = _recognizer.PartialResult();
                 // Only log partial JSON when it contains non-empty text to reduce noise
                 if (json != null && json.Length > 20)
-                    Console.WriteLine($"[Vosk:Partial] JSON={json}");
+                    SpeechLog.Trace(SpeechLogChannel.Stt, $"Vosk partial JSON={json}");
                 ParsePartialResult(json);
             }
         }

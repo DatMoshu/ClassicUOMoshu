@@ -108,6 +108,13 @@
     <Copy SourceFiles="@(VoiceModels)" DestinationFolder="$(OutputPath)Models\Voice\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
+  <Target Name="CopyUowwData" AfterTargets="Build">
+    <ItemGroup>
+      <UowwDataFiles Include="$(ProjectDir)..\..\Data\Client\*.zones.json;$(ProjectDir)..\..\Data\Client\*.csv" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UowwDataFiles)" DestinationFolder="$(OutputPath)Data\Client\" SkipUnchangedFiles="true" />
+  </Target>
+
   <PropertyGroup>
     <_IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</_IsWindows>
     <_IsMacOS Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</_IsMacOS>

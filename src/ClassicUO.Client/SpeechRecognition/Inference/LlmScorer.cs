@@ -2,12 +2,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using ClassicUO.Configuration;
+using ClassicUO.SpeechRecognition.Diagnostics;
 
 namespace ClassicUO.SpeechRecognition.Inference
 {
@@ -21,9 +24,9 @@ namespace ClassicUO.SpeechRecognition.Inference
     /// </summary>
     internal sealed class LlmScorer : IDisposable
     {
-        private const int LLM_TIMEOUT_MS = 800;
         private const string ENDPOINT = "/api/chat";
 
+        private readonly int _timeoutMs;
         private readonly HttpClient _http;
         private readonly Uri _chatUri;
         private readonly string _model;
@@ -36,7 +39,9 @@ namespace ClassicUO.SpeechRecognition.Inference
             _chatUri = new Uri(baseUrl + ENDPOINT);
             _model = model;
             _systemPrompt = BuildSystemPrompt(registry);
-            _http = new HttpClient { Timeout = TimeSpan.FromMilliseconds(LLM_TIMEOUT_MS + 200) };
+            _timeoutMs = Math.Max(500, Settings.GlobalSettings.LlmTimeoutMs);
+            _http = new HttpClient { Timeout = TimeSpan.FromMilliseconds(_timeoutMs + 200) };
+            SpeechLog.Info(SpeechLogChannel.Inference, $"LlmScorer created: timeout={_timeoutMs}ms, model={_model}, url={_chatUri}");
         }
 
         /// <summary>
@@ -48,15 +53,16 @@ namespace ClassicUO.SpeechRecognition.Inference
             CancellationToken ct = default)
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(LLM_TIMEOUT_MS);
+            timeoutCts.CancelAfter(_timeoutMs);
 
+            var sw = Stopwatch.StartNew();
             try
             {
-                // Build JSON manually — NativeAOT disables reflection-based JsonSerializer.Serialize
-                // on complex types. Serializing a primitive string is AOT-safe.
-                string modelJson = JsonSerializer.Serialize(_model);
-                string sysJson   = JsonSerializer.Serialize(_systemPrompt);
-                string userJson  = JsonSerializer.Serialize(transcript);
+                // Build JSON manually — NativeAOT disables ALL reflection-based JsonSerializer
+                // overloads in .NET 10, including primitives. Use manual escaping.
+                string modelJson = EscapeJsonString(_model);
+                string sysJson   = EscapeJsonString(_systemPrompt);
+                string userJson  = EscapeJsonString(transcript);
                 string json =
                     $"{{\"model\":{modelJson}," +
                     $"\"messages\":[{{\"role\":\"system\",\"content\":{sysJson}}}," +
@@ -64,24 +70,29 @@ namespace ClassicUO.SpeechRecognition.Inference
                     $"\"stream\":false,\"options\":{{\"temperature\":0.0}}}}";
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+                SpeechLog.Debug(SpeechLogChannel.Inference, $"LLM POST model={_model} transcript='{transcript}'");
                 var response = await _http.PostAsync(_chatUri, content, timeoutCts.Token);
                 if (!response.IsSuccessStatusCode)
                 {
                     string errBody = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[Inference] LLM {(int)response.StatusCode}: {errBody}");
+                    SpeechLog.Warn(SpeechLogChannel.Inference, $"LLM HTTP {(int)response.StatusCode}: {errBody}");
                     return null;
                 }
 
                 string body = await response.Content.ReadAsStringAsync(timeoutCts.Token);
-                return ParseResponse(body, transcript, registry);
+                SpeechLog.Debug(SpeechLogChannel.Inference, $"LLM response ({sw.ElapsedMilliseconds}ms): {(body.Length > 500 ? body[..500] + "…" : body)}");
+                var result = ParseResponse(body, transcript, registry);
+                SpeechLog.Info(SpeechLogChannel.Inference, $"LLM scored in {sw.ElapsedMilliseconds}ms — {(result?.Actions.Count ?? 0)} actions");
+                return result;
             }
             catch (OperationCanceledException)
             {
+                SpeechLog.Warn(SpeechLogChannel.Inference, $"LLM timeout after {sw.ElapsedMilliseconds}ms");
                 return null; // timeout — caller uses TokenScorer fallback
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Inference] LLM error: {ex.Message}");
+                SpeechLog.Error(SpeechLogChannel.Inference, $"LLM error after {sw.ElapsedMilliseconds}ms: {ex.Message}");
                 return null;
             }
         }
@@ -138,7 +149,7 @@ namespace ClassicUO.SpeechRecognition.Inference
             }
             catch (JsonException ex)
             {
-                Console.WriteLine($"[Inference] LLM JSON parse error: {ex.Message}");
+                SpeechLog.Warn(SpeechLogChannel.Inference, $"LLM JSON parse error: {ex.Message}");
                 return null;
             }
         }
@@ -172,6 +183,35 @@ namespace ClassicUO.SpeechRecognition.Inference
             sb.AppendLine("- command MUST be a valid command from the list above — no invention.");
             sb.AppendLine("- confidence is 0.0–1.0.");
 
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Wraps a string in double quotes with proper JSON escaping.
+        /// AOT-safe — no JsonSerializer dependency.
+        /// </summary>
+        private static string EscapeJsonString(string value)
+        {
+            var sb = new StringBuilder(value.Length + 16);
+            sb.Append('"');
+            foreach (char c in value)
+            {
+                switch (c)
+                {
+                    case '"':  sb.Append("\\\""); break;
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\n': sb.Append("\\n");  break;
+                    case '\r': sb.Append("\\r");  break;
+                    case '\t': sb.Append("\\t");  break;
+                    default:
+                        if (c < 0x20)
+                            sb.Append($"\\u{(int)c:X4}");
+                        else
+                            sb.Append(c);
+                        break;
+                }
+            }
+            sb.Append('"');
             return sb.ToString();
         }
 

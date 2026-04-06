@@ -5,6 +5,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ClassicUO.Configuration.Json;
+using ClassicUO.SpeechRecognition.Diagnostics;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Configuration
@@ -113,8 +114,9 @@ namespace ClassicUO.Configuration
 
         // ── LLM / Avatar settings ───────────────────────────────────────────
         [JsonPropertyName("llm_base_url")] public string LlmBaseUrl { get; set; } = "http://localhost:11434";
-        [JsonPropertyName("llm_model")] public string LlmModel { get; set; } = "gemma4:e2b";
+        [JsonPropertyName("llm_model")] public string LlmModel { get; set; } = "qwen2.5:1.5b";
         [JsonPropertyName("llm_max_history")] public int LlmMaxHistory { get; set; } = 20;
+        [JsonPropertyName("llm_timeout_ms")] public int LlmTimeoutMs { get; set; } = 2000;
 
         // ── Barge-in / NLP ──────────────────────────────────────────────────
         [JsonPropertyName("barge_in_enabled")] public bool BargeInEnabled { get; set; }
@@ -136,8 +138,13 @@ namespace ClassicUO.Configuration
         [JsonPropertyName("mic_always_on")] public bool MicAlwaysOn { get; set; } = true;
 
         // ── Voice command mode ────────────────────────────────────────────────
-        /// <summary>"simple" (gumps, spells, pets, recall only) or "advanced" (full UOWW war commands, LLM, avatar).</summary>
-        [JsonPropertyName("voice_command_mode")] public string VoiceCommandMode { get; set; } = "simple";
+        /// <summary>
+        /// Voice command routing mode:
+        ///   "basic"    - Fast hash lookup with shortcuts, no AI (BasicVoiceProcessor)
+        ///   "simple"   - Original CommandRouter with SpeechMacroStrings
+        ///   "advanced" - Full UOWW war commands, LLM inference, avatar
+        /// </summary>
+        [JsonPropertyName("voice_command_mode")] public string VoiceCommandMode { get; set; } = "basic";
 
         // ── Action Inference settings ─────────────────────────────────────────
         /// <summary>When true, voice transcripts are routed through the ActionInferenceEngine instead of CommandRouter.</summary>
@@ -146,6 +153,22 @@ namespace ClassicUO.Configuration
         [JsonPropertyName("inference_backend")] public string InferenceBackend { get; set; } = "llm";
         /// <summary>Milliseconds before the top inferred action auto-executes. Range: 500–5000.</summary>
         [JsonPropertyName("inference_auto_execute_ms")] public int InferenceAutoExecuteMs { get; set; } = 1500;
+
+        // ── Speech Logging ────────────────────────────────────────────────────
+        /// <summary>Global default log level for all speech subsystems. Per-channel overrides take precedence when set.</summary>
+        [JsonPropertyName("speech_log_level"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))] public SpeechLogLevel SpeechLogLevelDefault { get; set; } = SpeechLogLevel.Info;
+        /// <summary>Optional path for flat-file log output (e.g. "logs/speech.log"). Empty = console only.</summary>
+        [JsonPropertyName("speech_log_file")] public string SpeechLogFile { get; set; } = "";
+
+        // Per-channel overrides — null means "use SpeechLogLevelDefault"
+        [JsonPropertyName("speech_log_level_voice"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))]     public SpeechLogLevel? SpeechLogLevelVoice     { get; set; }
+        [JsonPropertyName("speech_log_level_audio"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))]     public SpeechLogLevel? SpeechLogLevelAudio     { get; set; }
+        [JsonPropertyName("speech_log_level_stt"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))]       public SpeechLogLevel? SpeechLogLevelStt       { get; set; }
+        [JsonPropertyName("speech_log_level_llm"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))]       public SpeechLogLevel? SpeechLogLevelLlm       { get; set; }
+        [JsonPropertyName("speech_log_level_inference"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))] public SpeechLogLevel? SpeechLogLevelInference { get; set; }
+        [JsonPropertyName("speech_log_level_route"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))]     public SpeechLogLevel? SpeechLogLevelRoute     { get; set; }
+        [JsonPropertyName("speech_log_level_avatar"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))]    public SpeechLogLevel? SpeechLogLevelAvatar    { get; set; }
+        [JsonPropertyName("speech_log_level_tts"), JsonConverter(typeof(JsonStringEnumConverter<SpeechLogLevel>))]       public SpeechLogLevel? SpeechLogLevelTts       { get; set; }
 
         // ── Safe word recall ──────────────────────────────────────────────────
         /// <summary>

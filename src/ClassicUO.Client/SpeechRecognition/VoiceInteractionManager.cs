@@ -8,7 +8,9 @@ using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.SpeechRecognition.Basic;
 using ClassicUO.SpeechRecognition.Commands;
+using ClassicUO.SpeechRecognition.Diagnostics;
 using ClassicUO.SpeechRecognition.Engines;
 using ClassicUO.SpeechRecognition.Inference;
 using ClassicUO.SpeechRecognition.Interfaces;
@@ -33,6 +35,7 @@ namespace ClassicUO.SpeechRecognition
         private SpeechAvatarManager _avatarManager;
         private SpeechCommandsManager _commandsManager;
         private CommandRouter _commandRouter;
+        private BasicVoiceProcessor _basicProcessor;
         private TtsPlaybackManager _ttsPlayback;
         private GenerativeSpeech _generativeSpeech;
         private BargeInController _bargeIn;
@@ -58,27 +61,33 @@ namespace ClassicUO.SpeechRecognition
 
             var settings = Settings.GlobalSettings;
 
-            // ── Settings dump ─────────────────────────────────────────────────
-            Console.WriteLine("[Voice:Init] ── Settings dump ───────────────────────────────");
-            Console.WriteLine($"[Voice:Init]  SpeechRecognitionEnabled : {settings.SpeechRecognitionEnabled}");
-            Console.WriteLine($"[Voice:Init]  SttEngine                : {settings.SttEngine}");
-            Console.WriteLine($"[Voice:Init]  VoskModelDirectory       : {settings.VoskModelDirectory}");
-            Console.WriteLine($"[Voice:Init]  VoskSampleRate           : {settings.VoskSampleRate}");
-            Console.WriteLine($"[Voice:Init]  ConfidenceThreshold      : {settings.ConfidenceThreshold}");
-            Console.WriteLine($"[Voice:Init]  MicDevice                : {settings.MicDevice}");
-            Console.WriteLine($"[Voice:Init]  MicCaptureRate           : {settings.MicCaptureRate}");
-            Console.WriteLine($"[Voice:Init]  MicCaptureChannels       : {settings.MicCaptureChannels}");
-            Console.WriteLine($"[Voice:Init]  MicAlwaysOn              : {settings.MicAlwaysOn}");
-            Console.WriteLine($"[Voice:Init]  InferenceModeEnabled     : {settings.InferenceModeEnabled}");
-            Console.WriteLine($"[Voice:Init]  InferenceBackend         : {settings.InferenceBackend}");
-            Console.WriteLine($"[Voice:Init]  LlmBaseUrl               : {settings.LlmBaseUrl}");
-            Console.WriteLine($"[Voice:Init]  LlmModel                 : {settings.LlmModel}");
-            Console.WriteLine($"[Voice:Init]  TtsEnabled               : {settings.TtsEnabled}");
-            Console.WriteLine("[Voice:Init] ─────────────────────────────────────────────────");
+            // ── Initialize speech logging + settings dump ─────────────────────
+            SpeechLog.Initialize();
+            SpeechLog.Debug(SpeechLogChannel.Voice, "── Settings dump ───────────────────────────────");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  SpeechRecognitionEnabled : {settings.SpeechRecognitionEnabled}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  SttEngine                : {settings.SttEngine}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  VoskModelDirectory       : {settings.VoskModelDirectory}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  VoskSampleRate           : {settings.VoskSampleRate}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  ConfidenceThreshold      : {settings.ConfidenceThreshold}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  MicDevice                : {settings.MicDevice}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  MicCaptureRate           : {settings.MicCaptureRate}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  MicCaptureChannels       : {settings.MicCaptureChannels}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  MicAlwaysOn              : {settings.MicAlwaysOn}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  InferenceModeEnabled     : {settings.InferenceModeEnabled}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  InferenceBackend         : {settings.InferenceBackend}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  LlmBaseUrl               : {settings.LlmBaseUrl}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  LlmModel                 : {settings.LlmModel}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  TtsEnabled               : {settings.TtsEnabled}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  LlmTimeoutMs             : {settings.LlmTimeoutMs}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  VoiceCommandMode         : {settings.VoiceCommandMode}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  SpeechLogLevelDefault    : {settings.SpeechLogLevelDefault}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  SpeechLogFile            : {settings.SpeechLogFile}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"  SpeechLogLevelInference  : {settings.SpeechLogLevelInference?.ToString() ?? "null (inherit)"}");
+            SpeechLog.Debug(SpeechLogChannel.Voice, "─────────────────────────────────────────────────");
 
             if (!settings.SpeechRecognitionEnabled)
             {
-                Console.WriteLine("[Voice:Init] SpeechRecognitionEnabled=false — aborting init.");
+                SpeechLog.Info(SpeechLogChannel.Voice, "SpeechRecognitionEnabled=false — aborting init.");
                 return;
             }
 
@@ -86,7 +95,7 @@ namespace ClassicUO.SpeechRecognition
 
             var (sttEngine, vadEngine) = CreateEngines(settings);
             _sttEngine = sttEngine;
-            Console.WriteLine($"[Voice:Init] Engine created: {sttEngine.GetType().Name}  VAD: {(vadEngine != null ? vadEngine.GetType().Name : "none")}");
+            SpeechLog.Info(SpeechLogChannel.Voice, $"Engine created: {sttEngine.GetType().Name}  VAD: {(vadEngine != null ? vadEngine.GetType().Name : "none")}");
 
             try
             {
@@ -94,16 +103,16 @@ namespace ClassicUO.SpeechRecognition
                     ? ModelManager.WhisperModelPath
                     : settings.VoskModelDirectory;
 
-                Console.WriteLine($"[Voice:Init] Loading STT model from: {modelPath}");
+                SpeechLog.Info(SpeechLogChannel.Stt, $"Loading STT model from: {modelPath}");
                 _sttEngine.LoadModelAsync(modelPath, settings.VoskSampleRate).GetAwaiter().GetResult();
-                Console.WriteLine($"[Voice:Init] STT model loaded OK. IsLoaded={_sttEngine.IsLoaded}");
+                SpeechLog.Info(SpeechLogChannel.Stt, $"STT model loaded OK. IsLoaded={_sttEngine.IsLoaded}");
 
                 if (vadEngine != null && !vadEngine.IsLoaded)
                     vadEngine.LoadModelAsync(ModelManager.SileroVadPath).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Voice:Init] STT model load FAILED: {ex}");
+                SpeechLog.Error(SpeechLogChannel.Stt, $"STT model load FAILED: {ex}");
                 _world.Journal.Add($"[Voice] STT model load failed: {ex.Message}",
                     0x03B2, "System", null, TextType.SYSTEM, true, MessageType.Regular);
                 return;
@@ -114,14 +123,19 @@ namespace ClassicUO.SpeechRecognition
 
             _audioPipeline = new AudioPipeline(_sttEngine, vadEngine);
             _audioPipeline.Initialize(settings.VoskSampleRate, settings.MicDevice, settings.MicCaptureRate, settings.MicCaptureChannels);
-            Console.WriteLine($"[Voice:Init] AudioPipeline initialized. Capture={settings.MicCaptureRate}Hz/{settings.MicCaptureChannels}ch → STT={settings.VoskSampleRate}Hz mono, Device={settings.MicDevice}");
+            SpeechLog.Info(SpeechLogChannel.Audio, $"AudioPipeline initialized. Capture={settings.MicCaptureRate}Hz/{settings.MicCaptureChannels}ch → STT={settings.VoskSampleRate}Hz mono, Device={settings.MicDevice}");
             if (_bargeIn != null)
                 _audioPipeline.SetBargeInController(_bargeIn);
             _audioPipeline.PartialResultAvailable += OnPartialResult;
             _audioPipeline.FinalResultAvailable   += OnFinalResult;
-            Console.WriteLine("[Voice:Init] PartialResultAvailable + FinalResultAvailable subscribed.");
+            SpeechLog.Debug(SpeechLogChannel.Voice, "PartialResultAvailable + FinalResultAvailable subscribed.");
 
-            // Command pipeline
+            // Basic mode processor - always initialized so user can switch modes at runtime
+            _basicProcessor = new BasicVoiceProcessor(_world);
+            _basicProcessor.Initialize();
+            SpeechLog.Info(SpeechLogChannel.Voice, $"[BasicMode] Processor initialized: {_basicProcessor.TotalCommands} commands, {_basicProcessor.ShortcutCount} shortcuts");
+
+            // Command pipeline (for simple/advanced modes)
             _avatarManager  = new SpeechAvatarManager(_world, _llmClient, _generativeSpeech);
             _commandsManager = new SpeechCommandsManager();
             var uowwMap     = new UowwCommandMap(_world);
@@ -143,6 +157,7 @@ namespace ClassicUO.SpeechRecognition
 
             _world.CommandManager.Register("llm", HandleLlmCommand);
             _world.CommandManager.Register("voicesettings", HandleVoiceSettingsCommand);
+            _world.CommandManager.Register("showspeech", HandleVoiceSettingsCommand);
 
             string engineLabel = settings.SttEngine == "whisper" ? "Whisper" : "Vosk";
             bool useVad = vadEngine != null;
@@ -200,7 +215,7 @@ namespace ClassicUO.SpeechRecognition
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Voice] TTS init failed: {ex.Message}");
+                SpeechLog.Error(SpeechLogChannel.Tts, $"TTS init failed: {ex.Message}");
             }
         }
 
@@ -220,7 +235,7 @@ namespace ClassicUO.SpeechRecognition
             if (File.Exists(ModelManager.SileroVadPath))
                 return new SileroVadEngine(settings.VadThreshold, settings.VadMinSpeechMs, settings.VadSilenceMs);
 
-            Console.WriteLine("[Voice] Silero VAD not found — using energy fallback.");
+            SpeechLog.Warn(SpeechLogChannel.Voice, "Silero VAD not found — using energy fallback.");
             return new EnergyVadFallback();
         }
 
@@ -237,30 +252,70 @@ namespace ClassicUO.SpeechRecognition
 
         private void OnFinalResult(object sender, SttResult result)
         {
-            Console.WriteLine($"[Voice:Final] RAW text='{result.Text}' conf={result.Confidence:F2}");
-            if (string.IsNullOrWhiteSpace(result.Text)) { Console.WriteLine("[Voice:Final] Dropped — empty text."); return; }
-            string text = StripVoskLeadingThe(result.Text);
-            if (string.IsNullOrWhiteSpace(text)) { Console.WriteLine("[Voice:Final] Dropped — stripped to empty (was 'the')."); return; }
-            Console.WriteLine($"[Voice:Final] Routing '{text}'  InferenceMode={Settings.GlobalSettings.InferenceModeEnabled}  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
+            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) return;
 
-            if (Settings.GlobalSettings.InferenceModeEnabled)
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"Final RAW text='{result.Text}' conf={result.Confidence:F2}");
+            if (string.IsNullOrWhiteSpace(result.Text)) { SpeechLog.Trace(SpeechLogChannel.Voice, "Final dropped — empty text."); return; }
+            string text = StripVoskLeadingThe(result.Text);
+            if (string.IsNullOrWhiteSpace(text)) { SpeechLog.Trace(SpeechLogChannel.Voice, "Final dropped — stripped to empty (was 'the')."); return; }
+
+            // Get current mode from settings (can be changed at runtime via gump)
+            string currentMode = (Settings.GlobalSettings.VoiceCommandMode ?? "basic").ToLowerInvariant();
+            SpeechLog.Debug(SpeechLogChannel.Voice, $"Final routing '{text}'  Mode={currentMode}");
+
+            // Route based on mode - Basic mode ALWAYS takes priority for instant execution
+            if (currentMode == "basic" && _basicProcessor != null)
+            {
+                // Basic mode: fast hash-based lookup, no HUD, instant execution
+                if (_basicProcessor.TryProcess(text, out var cmdResult))
+                {
+                    _basicProcessor.Execute(cmdResult);
+                }
+            }
+            else if (currentMode == "advanced" && Settings.GlobalSettings.InferenceModeEnabled)
+            {
+                // Advanced mode: use inference engine with HUD
                 InferenceEngine.HandleFinalResult(text);
+            }
             else
+            {
+                // Simple mode: original CommandRouter
                 _commandRouter?.RouteFullResult(text);
+            }
         }
 
         private void OnPartialResult(object sender, SttResult result)
         {
-            Console.WriteLine($"[Voice:Partial] RAW text='{result.Text}' conf={result.Confidence:F2}");
-            if (string.IsNullOrWhiteSpace(result.Text)) { Console.WriteLine("[Voice:Partial] Dropped — empty text."); return; }
-            string text = StripVoskLeadingThe(result.Text);
-            if (string.IsNullOrWhiteSpace(text)) { Console.WriteLine("[Voice:Partial] Dropped — stripped to empty (was 'the')."); return; }
-            Console.WriteLine($"[Voice:Partial] Routing '{text}'  InferenceMode={Settings.GlobalSettings.InferenceModeEnabled}  SpeechEnabled={Settings.GlobalSettings.SpeechRecognitionEnabled}");
+            if (!Settings.GlobalSettings.SpeechRecognitionEnabled) return;
 
-            if (Settings.GlobalSettings.InferenceModeEnabled)
+            SpeechLog.Trace(SpeechLogChannel.Voice, $"Partial RAW text='{result.Text}' conf={result.Confidence:F2}");
+            if (string.IsNullOrWhiteSpace(result.Text)) { SpeechLog.Trace(SpeechLogChannel.Voice, "Partial dropped — empty text."); return; }
+            string text = StripVoskLeadingThe(result.Text);
+            if (string.IsNullOrWhiteSpace(text)) { SpeechLog.Trace(SpeechLogChannel.Voice, "Partial dropped — stripped to empty (was 'the')."); return; }
+
+            // Get current mode from settings (can be changed at runtime via gump)
+            string currentMode = (Settings.GlobalSettings.VoiceCommandMode ?? "basic").ToLowerInvariant();
+            SpeechLog.Trace(SpeechLogChannel.Voice, $"Partial routing '{text}'  Mode={currentMode}");
+
+            // Route based on mode - Basic mode ALWAYS takes priority for instant execution
+            if (currentMode == "basic" && _basicProcessor != null)
+            {
+                // Basic mode: fast hash-based lookup, no HUD, instant execution
+                if (_basicProcessor.TryProcess(text, out var cmdResult))
+                {
+                    _basicProcessor.Execute(cmdResult);
+                }
+            }
+            else if (currentMode == "advanced" && Settings.GlobalSettings.InferenceModeEnabled)
+            {
+                // Advanced mode: use inference engine with HUD
                 InferenceEngine.HandlePartialResult(text);
+            }
             else
+            {
+                // Simple mode: original CommandRouter
                 _commandRouter?.RoutePartialResult(text, result.Confidence);
+            }
         }
 
         /// <summary>
@@ -297,7 +352,15 @@ namespace ClassicUO.SpeechRecognition
 
         private void HandleVoiceSettingsCommand(string[] args)
         {
-            PlayerSay("[Voice] Settings gump coming in Phase 3.");
+            var existing = UIManager.GetGump<Gumps.SpeechSettingsGump>();
+
+            if (existing != null)
+            {
+                existing.Dispose();
+                return;
+            }
+
+            UIManager.Add(new Gumps.SpeechSettingsGump(_world));
         }
 
         // ── Utilities ─────────────────────────────────────────────────────────
@@ -324,6 +387,7 @@ namespace ClassicUO.SpeechRecognition
             _statusGump?.Dispose();
             _audioPipeline?.Dispose();
             _ttsPlayback?.Dispose();
+            SpeechLog.Shutdown();
         }
     }
 }

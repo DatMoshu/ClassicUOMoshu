@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ClassicUO.Game;
 using ClassicUO.SpeechRecognition;
+using ClassicUO.SpeechRecognition.Diagnostics;
 
 namespace ClassicUO.SpeechRecognition
 {
@@ -95,7 +96,7 @@ namespace ClassicUO.SpeechRecognition
             catch (OperationCanceledException) { /* barge-in or shutdown — ignore */ }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Avatar] LLM error: {ex.Message}");
+                SpeechLog.Error(SpeechLogChannel.Avatar, $"LLM error: {ex.Message}");
             }
         }
 

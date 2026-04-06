@@ -67,6 +67,10 @@ namespace ClassicUO.Configuration
         public bool EnableCombatMusic { get; set; } = true;
         public bool ReproduceSoundsInBackground { get; set; }
 
+        // voice & speech
+        public bool EnableSpeechRecognition { get; set; } = true;
+        public bool EnableProximityChat { get; set; } = true;
+
         // fonts and speech
         public byte ChatFont { get; set; } = 1;
         public int SpeechDelay { get; set; } = 100;

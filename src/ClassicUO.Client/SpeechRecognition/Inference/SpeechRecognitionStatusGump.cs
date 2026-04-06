@@ -46,7 +46,7 @@ namespace ClassicUO.SpeechRecognition.Inference
             AcceptKeyboardInput   = false;
             IsVisible             = false; // hidden until first non-Idle state
 
-            PositionUpperLeft();
+            PositionLeftCenter();
 
             var bg = new AlphaBlendControl(0.72f) { X = 0, Y = 0, Width = WIDTH, Height = HEIGHT };
             Add(bg);
@@ -74,6 +74,7 @@ namespace ClassicUO.SpeechRecognition.Inference
         public override void Update()
         {
             base.Update();
+            PositionLeftCenter();
 
             if (_dirty)
             {
@@ -118,10 +119,11 @@ namespace ClassicUO.SpeechRecognition.Inference
             IsVisible         = true;
         }
 
-        private void PositionUpperLeft()
+        private void PositionLeftCenter()
         {
-            X = 12;
-            Y = 12;
+            X = 0;
+            int screenHeight = Client.Game.Window.ClientBounds.Height;
+            Y = (screenHeight - HEIGHT) / 2;
         }
     }
 }

@@ -68,6 +68,9 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _mapMarkersLoaded;
         private List<string> _hiddenZoneFiles;
         private ZoneSets _zoneSets = new ZoneSets();
+        // Last quadrant ownership received from server (packet 0xBF/0x0103).
+        // Cached so reopening the map gump shows current war state, not stale JSON colors.
+        private static byte[] _lastKnownOwners = null;
         private SpriteFont _markerFont = Fonts.Map1;
         private int _markerFontIndex = 1;
         private readonly Dictionary<string, ContextMenuItemEntry> _options = new Dictionary<string, ContextMenuItemEntry>();
@@ -1481,6 +1484,66 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        /// <summary>
+        /// Called by the packet handler (0xBF sub 0x0103) to cache quadrant ownership and
+        /// update colors on the open gump (if any). Safe to call before the gump is opened —
+        /// the cached state is applied by LoadZones() when the map is first opened.
+        /// </summary>
+        public static void CacheQuadrantOwners(byte[] owners)
+        {
+            _lastKnownOwners = (byte[])owners.Clone();
+            UIManager.GetGump<WorldMapGump>()?.UpdateQuadrantColors(owners);
+        }
+
+        /// <summary>
+        /// Called by packet handler (0xBF sub 0x0103) to update quadrant colors in real-time.
+        /// Maps faction owner index to color and updates the Zone objects directly.
+        /// Since zones are redrawn each frame, color changes appear instantly.
+        /// </summary>
+        public void UpdateQuadrantColors(byte[] owners)
+        {
+            // Map faction owner index to color
+            // 0 = Minax (red), 2 = True Britannians (blue), 0xFF = contested (white)
+            static Color OwnerToColor(byte owner) => owner switch
+            {
+                0 => Color.Red,                  // Minax
+                2 => new Color(80, 140, 255),    // True Britannians (bright blue)
+                _ => Color.White                 // Contested / neutral
+            };
+
+            // Find zones for Felucca (map index 0) and update colors by quadrant label prefix
+            foreach (var entry in _zoneSets.ZoneSetDict.Values)
+            {
+                if (entry.MapIndex != 0) // Felucca only
+                {
+                    continue;
+                }
+
+                foreach (var zone in entry.Zones)
+                {
+                    // Labels are "Q0 Name", "Q1 Name", etc.
+                    if (zone.Label.Length < 2 || zone.Label[0] != 'Q')
+                    {
+                        continue;
+                    }
+
+                    // Parse quadrant index from label (e.g., "Q9 Britain Heartlands" -> 9)
+                    int spaceIdx = zone.Label.IndexOf(' ');
+
+                    if (spaceIdx <= 1)
+                    {
+                        continue;
+                    }
+
+                    if (int.TryParse(zone.Label.Substring(1, spaceIdx - 1), out int qIdx) && qIdx >= 0 && qIdx < owners.Length)
+                    {
+                        zone.Color = OwnerToColor(owners[qIdx]);
+                    }
+                }
+            }
+
+        }
+
         private void LoadZones()
         {
             Log.Trace("LoadZones()...");
@@ -1495,6 +1558,12 @@ namespace ClassicUO.Game.UI.Gumps
                 );
 
                 _zoneSets.AddZoneSetByFileName(World, filename, shouldHide);
+            }
+
+            // Restore last server-sent war state so reopening the map reflects captures
+            if (_lastKnownOwners != null)
+            {
+                UpdateQuadrantColors(_lastKnownOwners);
             }
         }
 
@@ -3299,7 +3368,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             { "red", Color.Red },
             { "green", Color.Green },
-            { "blue", Color.Blue },
+            { "blue", new Color(80, 140, 255) },  // Brighter blue for TB (visible on ocean)
             { "purple", Color.Purple },
             { "black", Color.Black },
             { "yellow", Color.Yellow },
