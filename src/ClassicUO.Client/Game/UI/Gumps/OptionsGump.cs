@@ -12,6 +12,8 @@ using ClassicUO.Network;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
+using ClassicUO.Utility.Logging;
+using SDL3;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -59,6 +61,8 @@ namespace ClassicUO.Game.UI.Gumps
         // sounds
         private Checkbox _enableSounds, _enableMusic, _footStepsSound, _combatMusic, _musicInBackground, _loginMusic;
         private Checkbox _enableSpeechRecognition, _enableProximityChat;
+        private Checkbox _speechCmdPttCheckbox;
+        private HotkeyBox _speechCmdPttKeyBox;
 
         // fonts
         private FontSelector _fontSelectorChat;
@@ -154,6 +158,13 @@ namespace ClassicUO.Game.UI.Gumps
         private Checkbox _useStandardSkillsGump, _showMobileNameIncoming, _showCorpseNameIncoming;
         private Checkbox _showStatsMessage, _showSkillsMessage;
         private HSliderBar _showSkillsMessageDelta;
+
+        // profiles tab (page 13)
+        private Checkbox _profileExportSound, _profileExportHues, _profileExportGumps, _profileExportVisual;
+        private Checkbox _profileExportCombat, _profileExportTooltip, _profileExportMacros, _profileExportChat, _profileExportWorldMap;
+        private InputField _profileExportNameField, _profileImportCodeField;
+        private Label _profileShareCodeLabel;
+        private string _lastShareCode = string.Empty;
 
         private GlobalProfile _globalProfile = ProfileManager.GlobalProfile;
         private Profile _currentProfile = ProfileManager.CurrentProfile;
@@ -339,6 +350,19 @@ namespace ClassicUO.Game.UI.Gumps
                     10 + 30 * i++,
                     140,
                     25,
+                    ButtonAction.SwitchPage,
+                    "Profiles"
+                ) { ButtonParameter = 13 }
+            );
+
+            Add
+            (
+                new NiceButton
+                (
+                    10,
+                    10 + 30 * i++,
+                    140,
+                    25,
                     ButtonAction.Activate,
                     ResGumps.IgnoreListManager
                 )
@@ -422,6 +446,7 @@ namespace ClassicUO.Game.UI.Gumps
             BuildInfoBar();
             BuildContainers();
             BuildExperimental();
+            BuildProfiles();
 
             ChangePage(1);
         }
@@ -1581,7 +1606,30 @@ namespace ClassicUO.Game.UI.Gumps
                 startY
             );
 
-            startY += _enableProximityChat.Height + 2;
+            startY += _enableProximityChat.Height + 8;
+
+            // ── Speech command activation mode ─────────────────────────────────
+            _speechCmdPttCheckbox = AddCheckBox
+            (
+                rightArea,
+                "Speech Commands: Push to Talk",
+                _currentProfile.SpeechCmdMode == 1,
+                startX,
+                startY
+            );
+            startY += _speechCmdPttCheckbox.Height + 2;
+
+            AddLabel(rightArea, "PTT Key:", startX + 10, startY);
+
+            _speechCmdPttKeyBox = new HotkeyBox
+            {
+                X = startX + 80,
+                Y = startY
+            };
+            if (_currentProfile.SpeechCmdPttKey != 0)
+                _speechCmdPttKeyBox.SetKey((SDL.SDL_Keycode)_currentProfile.SpeechCmdPttKey, SDL.SDL_Keymod.SDL_KMOD_NONE);
+            rightArea.Add(_speechCmdPttKeyBox);
+            startY += 30;
 
             Add(rightArea, PAGE);
         }
@@ -3604,6 +3652,22 @@ namespace ClassicUO.Game.UI.Gumps
                     // Open new
                     UIManager.Add(new IgnoreManagerGump(World));
                     break;
+
+                case Buttons.ExportProfile:
+                    HandleExportProfile();
+                    break;
+
+                case Buttons.ImportProfileFile:
+                    HandleImportProfileFile();
+                    break;
+
+                case Buttons.ImportProfileCode:
+                    HandleImportProfileCode();
+                    break;
+
+                case Buttons.CopyShareCode:
+                    HandleCopyShareCode();
+                    break;
             }
         }
 
@@ -3699,6 +3763,8 @@ namespace ClassicUO.Game.UI.Gumps
                     _musicVolume.IsVisible = _enableMusic.IsChecked;
                     _enableSpeechRecognition.IsChecked = true;
                     _enableProximityChat.IsChecked = true;
+                    if (_speechCmdPttCheckbox != null) _speechCmdPttCheckbox.IsChecked = false;
+                    _speechCmdPttKeyBox?.SetKey(SDL.SDL_Keycode.SDLK_UNKNOWN, SDL.SDL_Keymod.SDL_KMOD_NONE);
 
                     break;
 
@@ -3984,6 +4050,11 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.EnableSpeechRecognition = _enableSpeechRecognition.IsChecked;
             Settings.GlobalSettings.SpeechRecognitionEnabled = _enableSpeechRecognition.IsChecked;
             _currentProfile.EnableProximityChat = _enableProximityChat.IsChecked;
+            _currentProfile.SpeechCmdMode = _speechCmdPttCheckbox?.IsChecked == true ? 1 : 0;
+            _currentProfile.SpeechCmdPttKey = (int)(_speechCmdPttKeyBox?.Key ?? 0);
+            // In Always On mode, keep the PTT gate open so commands aren't dropped
+            if (_currentProfile.SpeechCmdMode == 0 && World.VoiceInteractionManager != null)
+                World.VoiceInteractionManager.SpeechCmdPttActive = true;
 
             if (!_currentProfile.EnableSound)
             {
@@ -4687,8 +4758,12 @@ namespace ClassicUO.Game.UI.Gumps
             OpenIgnoreList,
             NewMacro,
             DeleteMacro,
+            ExportProfile,
+            ImportProfileFile,
+            ImportProfileCode,
+            CopyShareCode,
 
-            Last = DeleteMacro
+            Last = CopyShareCode
         }
 
 
@@ -4971,6 +5046,354 @@ namespace ClassicUO.Game.UI.Gumps
         private void RecenterGump() {
             X = (Client.Game.ClientBounds.Width >> 1) - WIDTH/2;
             Y = (Client.Game.ClientBounds.Height >> 1) - HEIGHT/2;
+        }
+
+        // ── PP.A6 — Profiles tab ──────────────────────────────────────────────
+
+        private void BuildProfiles()
+        {
+            const int PAGE = 13;
+
+            ScrollArea rightArea = new ScrollArea
+            (
+                190,
+                20,
+                WIDTH - 210,
+                420,
+                true
+            );
+
+            int startX = 5;
+            int startY = 5;
+
+            // ── Saved Profiles library ────────────────────────────────────────
+            Label libraryLabel = AddLabel(rightArea, "── Saved Profiles ──", startX, startY);
+            startY += libraryLabel.Height + 4;
+
+            string exportDirLib = System.IO.Path.Combine(CUOEnviroment.ExecutablePath, "Data", "ProfileExports");
+            string[] savedProfiles = System.IO.Directory.Exists(exportDirLib)
+                ? System.IO.Directory.GetFiles(exportDirLib, "*.uowprofile")
+                : System.Array.Empty<string>();
+
+            if (savedProfiles.Length == 0)
+            {
+                Label noProfiles = AddLabel(rightArea, "  (no saved profiles — export one below)", startX + 10, startY);
+                startY += noProfiles.Height + 6;
+            }
+            else
+            {
+                foreach (string savedPath in savedProfiles)
+                {
+                    string fname      = System.IO.Path.GetFileNameWithoutExtension(savedPath);
+                    string capturePath = savedPath;
+                    NiceButton profileBtn = new NiceButton
+                    (
+                        startX + 10, startY, 260, 22,
+                        ButtonAction.Activate,
+                        fname
+                    ) { IsSelectable = false };
+                    profileBtn.MouseUp += (_, _) =>
+                    {
+                        _profileImportCodeField?.SetText(capturePath);
+                        HandleImportProfileFile();
+                    };
+                    rightArea.Add(profileBtn);
+                    startY += 26;
+                }
+            }
+            startY += 8;
+
+            // ── Export section ────────────────────────────────────────────────
+            Label sectionLabel = AddLabel(rightArea, "── Export Profile ──", startX, startY);
+            startY += sectionLabel.Height + 4;
+
+            Label nameLabel = AddLabel(rightArea, "Profile name:", startX, startY);
+            startY += nameLabel.Height + 2;
+
+            _profileExportNameField = AddInputField
+            (
+                null,   // added manually below
+                startX,
+                startY,
+                300,
+                TEXTBOX_HEIGHT,
+                maxCharCount: 48
+            );
+            _profileExportNameField.SetText(_currentProfile?.CharacterName ?? "MyProfile");
+            rightArea.Add(_profileExportNameField);
+            startY += TEXTBOX_HEIGHT + 6;
+
+            Label catLabel = AddLabel(rightArea, "Include categories:", startX, startY);
+            startY += catLabel.Height + 4;
+
+            int checkX = startX + 10;
+
+            _profileExportSound = AddCheckBox(rightArea, "Sound",     true,  checkX, startY); startY += _profileExportSound.Height + 2;
+            _profileExportHues  = AddCheckBox(rightArea, "Hues",      true,  checkX, startY); startY += _profileExportHues.Height + 2;
+            _profileExportGumps = AddCheckBox(rightArea, "Gump layout",true, checkX, startY); startY += _profileExportGumps.Height + 2;
+            _profileExportVisual= AddCheckBox(rightArea, "Visual",    true,  checkX, startY); startY += _profileExportVisual.Height + 2;
+            _profileExportCombat= AddCheckBox(rightArea, "Combat",    true,  checkX, startY); startY += _profileExportCombat.Height + 2;
+            _profileExportTooltip=AddCheckBox(rightArea, "Tooltips",  true,  checkX, startY); startY += _profileExportTooltip.Height + 2;
+            _profileExportMacros= AddCheckBox(rightArea, "Macros",    true,  checkX, startY); startY += _profileExportMacros.Height + 2;
+            _profileExportChat  = AddCheckBox(rightArea, "Chat",      true,  checkX, startY); startY += _profileExportChat.Height + 2;
+            _profileExportWorldMap=AddCheckBox(rightArea,"World map", true,  checkX, startY); startY += _profileExportWorldMap.Height + 6;
+
+            NiceButton exportBtn = new NiceButton
+            (
+                startX, startY, 180, 25,
+                ButtonAction.Activate,
+                "Export to .uowprofile"
+            ) { IsSelectable = false, ButtonParameter = (int)Buttons.ExportProfile };
+            rightArea.Add(exportBtn);
+            startY += 30;
+
+            // Share code row — populated after first export
+            _profileShareCodeLabel = AddLabel(rightArea, "Share code: (export to generate)", startX, startY);
+            startY += _profileShareCodeLabel.Height + 2;
+
+            NiceButton copyCodeBtn = new NiceButton
+            (
+                startX, startY, 140, 22,
+                ButtonAction.Activate,
+                "Copy code to clipboard"
+            ) { IsSelectable = false, ButtonParameter = (int)Buttons.CopyShareCode };
+            rightArea.Add(copyCodeBtn);
+            startY += 30;
+
+            // ── Import section ────────────────────────────────────────────────
+            Label importLabel = AddLabel(rightArea, "── Import Profile ──", startX, startY);
+            startY += importLabel.Height + 4;
+
+            Label pathLabel = AddLabel(rightArea, "File path (.uowprofile):", startX, startY);
+            startY += pathLabel.Height + 2;
+
+            // Shared import path field — also doubles as status output after import
+            _profileImportCodeField = AddInputField
+            (
+                null,
+                startX,
+                startY,
+                WIDTH - 230,
+                TEXTBOX_HEIGHT,
+                maxCharCount: 512
+            );
+            rightArea.Add(_profileImportCodeField);
+            startY += TEXTBOX_HEIGHT + 4;
+
+            NiceButton importFileBtn = new NiceButton
+            (
+                startX, startY, 180, 25,
+                ButtonAction.Activate,
+                "Import from file"
+            ) { IsSelectable = false, ButtonParameter = (int)Buttons.ImportProfileFile };
+            rightArea.Add(importFileBtn);
+            startY += 35;
+
+            Label codeLabel = AddLabel(rightArea, "  — or enter a share code —", startX, startY);
+            startY += codeLabel.Height + 4;
+
+            NiceButton importCodeBtn = new NiceButton
+            (
+                startX, startY, 180, 25,
+                ButtonAction.Activate,
+                "Fetch profile by code"
+            ) { IsSelectable = false, ButtonParameter = (int)Buttons.ImportProfileCode };
+            rightArea.Add(importCodeBtn);
+
+            Add(rightArea, PAGE);
+        }
+
+        private void HandleExportProfile()
+        {
+            if (_currentProfile == null || string.IsNullOrWhiteSpace(ProfileManager.ProfilePath))
+            {
+                GameActions.Print(World, "No active profile to export.");
+                return;
+            }
+
+            // Export packages the files already on disk (profile.json, gumps.xml, macros.xml).
+            // Apply settings before exporting if you want the latest unsaved changes included.
+
+            try
+            {
+                ProfileCategory cats = ProfileCategory.None;
+                if (_profileExportSound?.IsChecked == true)      cats |= ProfileCategory.SoundSettings;
+                if (_profileExportHues?.IsChecked == true)       cats |= ProfileCategory.HueSettings;
+                if (_profileExportGumps?.IsChecked == true)      cats |= ProfileCategory.GumpLayout;
+                if (_profileExportVisual?.IsChecked == true)     cats |= ProfileCategory.VisualSettings;
+                if (_profileExportCombat?.IsChecked == true)     cats |= ProfileCategory.CombatSettings;
+                if (_profileExportTooltip?.IsChecked == true)    cats |= ProfileCategory.TooltipSettings;
+                if (_profileExportMacros?.IsChecked == true)     cats |= ProfileCategory.MacroBindings;
+                if (_profileExportChat?.IsChecked == true)       cats |= ProfileCategory.ChatSettings;
+                if (_profileExportWorldMap?.IsChecked == true)   cats |= ProfileCategory.WorldMap;
+
+                string profileName = _profileExportNameField?.Text?.Trim();
+                if (string.IsNullOrWhiteSpace(profileName))
+                    profileName = _currentProfile.CharacterName ?? "export";
+
+                foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+                    profileName = profileName.Replace(c, '_');
+
+                string exportDir  = System.IO.Path.Combine(CUOEnviroment.ExecutablePath, "Data", "ProfileExports");
+                string exportPath = System.IO.Path.Combine(exportDir, $"{profileName}.uowprofile");
+
+                var meta = new ProfileExportMetadata
+                {
+                    ProfileName  = profileName,
+                    Description  = string.Empty,
+                    Faction      = string.Empty,
+                    Tags         = System.Array.Empty<string>(),
+                    AuthorSerial = 0,
+                };
+
+                bool ok = ProfilePackageWriter.Write(ProfileManager.ProfilePath, _currentProfile, cats, exportPath, meta);
+
+                if (ok)
+                {
+                    _profileImportCodeField?.SetText(exportPath);
+                    GameActions.Print(World, $"Profile exported: {exportPath}");
+
+                    string rawCode = ProfileCodeGenerator.ComputeFromFile(exportPath);
+                    if (!string.IsNullOrEmpty(rawCode))
+                    {
+                        _lastShareCode = rawCode;
+                        string formatted = ProfileCodeGenerator.Format(rawCode);
+                        if (_profileShareCodeLabel != null) _profileShareCodeLabel.Text = $"Share code: {formatted}";
+                        SDL.SDL_SetClipboardText(rawCode);
+                        GameActions.Print(World, $"Share code: {formatted}");
+                        GameActions.Print(World, "(Code copied to clipboard — use [shareprofile <code> to send to a player)");
+                    }
+                }
+                else
+                {
+                    GameActions.Print(World, "Export failed. Check the log for details.");
+                }
+            }
+            catch (Exception ex)
+            {
+                GameActions.Print(World, $"Export error: {ex.Message}");
+                Log.Error($"[ProfileExport] {ex}");
+            }
+        }
+
+        private void HandleImportProfileFile()
+        {
+            if (_currentProfile == null || string.IsNullOrWhiteSpace(ProfileManager.ProfilePath))
+            {
+                GameActions.Print(World, "No active profile — cannot import.");
+                return;
+            }
+
+            string path = _profileImportCodeField?.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
+            {
+                GameActions.Print(World, "Enter a valid .uowprofile file path in the field above.");
+                return;
+            }
+
+            // Collect selected categories from the export checkboxes (same set, reused for import)
+            ProfileCategory cats = ProfileCategory.None;
+            if (_profileExportSound?.IsChecked == true)     cats |= ProfileCategory.SoundSettings;
+            if (_profileExportHues?.IsChecked == true)      cats |= ProfileCategory.HueSettings;
+            if (_profileExportGumps?.IsChecked == true)     cats |= ProfileCategory.GumpLayout;
+            if (_profileExportVisual?.IsChecked == true)    cats |= ProfileCategory.VisualSettings;
+            if (_profileExportCombat?.IsChecked == true)    cats |= ProfileCategory.CombatSettings;
+            if (_profileExportTooltip?.IsChecked == true)   cats |= ProfileCategory.TooltipSettings;
+            if (_profileExportMacros?.IsChecked == true)    cats |= ProfileCategory.MacroBindings;
+            if (_profileExportChat?.IsChecked == true)      cats |= ProfileCategory.ChatSettings;
+            if (_profileExportWorldMap?.IsChecked == true)  cats |= ProfileCategory.WorldMap;
+
+            if (cats == ProfileCategory.None)
+            {
+                GameActions.Print(World, "Select at least one category to import.");
+                return;
+            }
+
+            ProfileImportResult result = ProfileImportOrchestrator.Import(
+                path, ProfileManager.ProfilePath, _currentProfile, cats, World);
+
+            if (result.Success)
+            {
+                string msg = $"Imported '{result.Manifest.ProfileName}'";
+                if (result.MacroActionsModified > 0)
+                    msg += $" ({result.MacroActionsModified} macro actions sanitised)";
+                if (!string.IsNullOrEmpty(result.Warning))
+                    msg += $" — {result.Warning}";
+                GameActions.Print(World, msg);
+
+                // Reopen Options so all controls reflect the imported values.
+                // The user then clicks Apply/Okay to push to the live engine.
+                World capturedWorld = World;
+                Dispose();
+                UIManager.Add(new OptionsGump(capturedWorld));
+            }
+            else
+            {
+                GameActions.Print(World, $"Import failed: {result.Error}");
+            }
+        }
+
+        private void HandleCopyShareCode()
+        {
+            if (string.IsNullOrEmpty(_lastShareCode))
+            {
+                GameActions.Print(World, "No share code yet — export a profile first.");
+                return;
+            }
+
+            SDL.SDL_SetClipboardText(_lastShareCode);
+            GameActions.Print(World, $"Share code copied to clipboard.");
+            GameActions.Print(World, $"Use: [shareprofile {_lastShareCode}  then target a player.");
+        }
+
+        private void HandleImportProfileCode()
+        {
+            string input = _profileImportCodeField?.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                GameActions.Print(World, "Enter a share code or file path.");
+                return;
+            }
+
+            // If it looks like a path, treat it as a file import
+            if (input.Contains(System.IO.Path.DirectorySeparatorChar) ||
+                input.Contains(System.IO.Path.AltDirectorySeparatorChar) ||
+                input.EndsWith(".uowprofile", StringComparison.OrdinalIgnoreCase))
+            {
+                HandleImportProfileFile();
+                return;
+            }
+
+            // Otherwise it's a share code — server fetch is Phase 2.
+            // For now, inform the player that code fetching requires server support.
+            string normalised = ProfileCodeGenerator.Normalise(input);
+            if (normalised.Length != 48)
+            {
+                GameActions.Print(World, "Invalid share code. Codes are 48 characters (or formatted with dashes).");
+                return;
+            }
+
+            // Scan ProfileExports for a file whose computed code matches
+            string exportDir = System.IO.Path.Combine(CUOEnviroment.ExecutablePath, "Data", "ProfileExports");
+            if (System.IO.Directory.Exists(exportDir))
+            {
+                foreach (string f in System.IO.Directory.GetFiles(exportDir, "*.uowprofile"))
+                {
+                    try
+                    {
+                        string fileCode = ProfileCodeGenerator.ComputeFromFile(f);
+                        if (fileCode == normalised)
+                        {
+                            _profileImportCodeField?.SetText(f);
+                            HandleImportProfileFile();
+                            return;
+                        }
+                    }
+                    catch { /* skip unreadable files */ }
+                }
+            }
+
+            GameActions.Print(World, "Profile not found locally — ask your friend to send you the .uowprofile file directly.");
         }
     }
 }

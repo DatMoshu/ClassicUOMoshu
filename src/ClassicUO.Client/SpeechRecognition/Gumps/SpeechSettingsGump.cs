@@ -23,13 +23,17 @@ namespace ClassicUO.SpeechRecognition.Gumps
         private const int LABEL_COL = 65;
         private const ushort WHITE = 0xFFFF;
 
-        private static readonly string[] SPEECH_MODES = { "Off", "Basic", "Simple", "Advanced" };
-
         private readonly Label _modeLabel;
         private readonly Label _micStatusLabel;
         private readonly Label _proxLabel;
 
         private volatile bool _dirty;
+        // Track last-seen state to avoid redundant label updates
+        private bool _lastMuted;
+        private bool _lastProx;
+        private bool _lastSpeechEnabled;
+        private bool _lastPttActive;
+        private int _lastSpeechMode;
 
         public SpeechSettingsGump(World world) : base(world, 0, 0)
         {
@@ -100,6 +104,13 @@ namespace ClassicUO.SpeechRecognition.Gumps
             {
                 world.VivoxManager.VoiceStateChanged += OnVoiceStateChanged;
             }
+
+            // Seed last-seen state so first Update() doesn't double-update
+            _lastMuted  = world.VivoxManager?.IsMicMuted ?? false;
+            _lastProx   = ProfileManager.CurrentProfile?.EnableProximityChat ?? true;
+            _lastSpeechEnabled = Settings.GlobalSettings.SpeechRecognitionEnabled;
+            _lastSpeechMode    = ProfileManager.CurrentProfile?.SpeechCmdMode ?? 0;
+            _lastPttActive     = world.VoiceInteractionManager?.SpeechCmdPttActive ?? false;
         }
 
         private void OnToggleMode()
@@ -117,6 +128,7 @@ namespace ClassicUO.SpeechRecognition.Gumps
 
             Settings.GlobalSettings.VoiceCommandMode = next;
             Settings.GlobalSettings.SpeechRecognitionEnabled = !string.Equals(next, "off", System.StringComparison.OrdinalIgnoreCase);
+            Settings.GlobalSettings.Save();
             _modeLabel.Text = GetModeDisplayName(next);
         }
 
@@ -139,12 +151,36 @@ namespace ClassicUO.SpeechRecognition.Gumps
         {
             base.Update();
 
-            if (_dirty)
+            // ── Mic row — driven by VivoxManager event + poll ─────────────────
+            bool muted = World.VivoxManager?.IsMicMuted ?? false;
+            if (_dirty || muted != _lastMuted)
             {
                 _dirty = false;
-                bool muted = World.VivoxManager?.IsMicMuted ?? false;
+                _lastMuted = muted;
                 _micStatusLabel.Text = muted ? "● OFF" : "● ON";
-                _micStatusLabel.Hue = muted ? (ushort)0x0026 : (ushort)0x004F;
+                _micStatusLabel.Hue  = muted ? (ushort)0x0026 : (ushort)0x004F;
+            }
+
+            // ── Prox row — poll profile ───────────────────────────────────────
+            bool proxOn = ProfileManager.CurrentProfile?.EnableProximityChat ?? false;
+            if (proxOn != _lastProx)
+            {
+                _lastProx = proxOn;
+                _proxLabel.Text = proxOn ? "● ON" : "● OFF";
+                _proxLabel.Hue  = proxOn ? (ushort)0x004F : (ushort)0x0026;
+            }
+
+            // ── Speech row — poll mode + PTT state ────────────────────────────
+            bool speechOn  = Settings.GlobalSettings.SpeechRecognitionEnabled;
+            int  cmdMode   = ProfileManager.CurrentProfile?.SpeechCmdMode ?? 0;
+            bool pttActive = World.VoiceInteractionManager?.SpeechCmdPttActive ?? false;
+
+            if (speechOn != _lastSpeechEnabled || cmdMode != _lastSpeechMode || pttActive != _lastPttActive)
+            {
+                _lastSpeechEnabled = speechOn;
+                _lastSpeechMode    = cmdMode;
+                _lastPttActive     = pttActive;
+                _modeLabel.Text    = GetModeLabel(speechOn, cmdMode, pttActive);
             }
         }
 
@@ -160,18 +196,24 @@ namespace ClassicUO.SpeechRecognition.Gumps
 
         private static string GetCurrentModeLabel()
         {
-            string mode = Settings.GlobalSettings.VoiceCommandMode ?? "basic";
-            return GetModeDisplayName(mode);
+            bool speechOn  = Settings.GlobalSettings.SpeechRecognitionEnabled;
+            int  cmdMode   = ProfileManager.CurrentProfile?.SpeechCmdMode ?? 0;
+            // PTT active state is unknown at construction — default to false (off) for PTT mode
+            bool pttActive = false;
+            return GetModeLabel(speechOn, cmdMode, pttActive);
         }
 
-        private static string GetModeDisplayName(string mode)
+        private static string GetModeLabel(bool speechEnabled, int cmdMode, bool pttActive)
         {
+            if (!speechEnabled) return "Off";
+            if (cmdMode == 1) return pttActive ? "PTT: ON" : "PTT: Off";
+            string mode = Settings.GlobalSettings.VoiceCommandMode ?? "basic";
             return mode.ToLowerInvariant() switch
             {
-                "basic" => "Basic",
+                "basic"    => "Basic",
                 "advanced" => "Advanced",
-                "off" => "Off",
-                _ => "Simple"
+                "off"      => "Off",
+                _          => "Simple"
             };
         }
     }

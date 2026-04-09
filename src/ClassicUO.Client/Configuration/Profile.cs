@@ -22,6 +22,8 @@ namespace ClassicUO.Configuration
     //[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.Unspecified)]
     [JsonSerializable(typeof(GlobalProfile), GenerationMode = JsonSourceGenerationMode.Metadata)]
     [JsonSerializable(typeof(Profile), GenerationMode = JsonSourceGenerationMode.Metadata)]
+    [JsonSerializable(typeof(ProfileManifest), GenerationMode = JsonSourceGenerationMode.Metadata)]
+    [JsonSerializable(typeof(ProfileManifestIncludes), GenerationMode = JsonSourceGenerationMode.Metadata)]
     sealed partial class ProfileJsonContext : JsonSerializerContext
     {
         sealed class SnakeCaseNamingPolicy : JsonNamingPolicy
@@ -70,6 +72,11 @@ namespace ClassicUO.Configuration
         // voice & speech
         public bool EnableSpeechRecognition { get; set; } = true;
         public bool EnableProximityChat { get; set; } = true;
+
+        // speech command activation — 0 = Always On, 1 = Push to Talk
+        public int SpeechCmdMode { get; set; } = 0;
+        // SDL_Keycode int for the speech command PTT key; 0 = unbound
+        public int SpeechCmdPttKey { get; set; } = 0;
 
         // fonts and speech
         public byte ChatFont { get; set; } = 1;

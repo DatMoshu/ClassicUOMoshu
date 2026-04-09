@@ -57,7 +57,7 @@
   "mic_device": 0,
   "mic_capture_rate": 48000,
   "mic_capture_channels": 2,
-  "voice_command_mode": "simple",
+  "voice_command_mode": "basic",
   "llm_base_url": "http://localhost:11434",
   "llm_model": "qwen2.5:1.5b",
   "llm_max_history": 20,

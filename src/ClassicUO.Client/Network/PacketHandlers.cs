@@ -4754,6 +4754,50 @@ namespace ClassicUO.Network
                     break;
                 }
 
+                case 0x0120: // UOWW — ProfileMetadata (registry lookup result)
+                {
+                    if (world.Player == null) break;
+                    string code    = p.ReadASCII();
+                    string name    = p.ReadASCII();
+                    string author  = p.ReadASCII();
+                    string faction = p.ReadASCII();
+                    string desc    = p.ReadASCII();
+                    int    ratingBits  = (int)p.ReadUInt32BE();
+                    int    ratingCount = (int)p.ReadUInt32BE();
+                    float  avgRating   = BitConverter.Int32BitsToSingle(ratingBits);
+
+                    GameActions.Print(world, $"[Profile] {name} by {author} ({faction}) — ★ {avgRating:F1} ({ratingCount} ratings)");
+                    GameActions.Print(world, $"[Profile] Code: {code}");
+                    break;
+                }
+
+                case 0x0121: // UOWW — ProfileNotFound
+                {
+                    if (world.Player == null) break;
+                    string notFoundCode = p.ReadASCII();
+                    GameActions.Print(world, $"[Profile] Code not found: {notFoundCode}");
+                    break;
+                }
+
+                case 0x0122: // UOWW — RateResult
+                {
+                    if (world.Player == null) break;
+                    string rateCode  = p.ReadASCII();
+                    bool   rateOk    = p.ReadUInt8() > 0;
+                    string rateError = p.ReadASCII();
+                    GameActions.Print(world, rateOk ? $"[Profile] Rating submitted!" : $"[Profile] Rating failed: {rateError}");
+                    break;
+                }
+
+                case 0x0123: // UOWW — ProfileShareRequest
+                {
+                    if (world.Player == null) break;
+                    string sender    = p.ReadASCII();
+                    string shareCode = p.ReadASCII();
+                    UIManager.Add(new ClassicUO.Game.UI.Gumps.ProfileShareRequestGump(world, sender, shareCode));
+                    break;
+                }
+
                 default:
                     Log.Warn($"Unhandled 0xBF - sub: {cmd.ToHex()}");
 

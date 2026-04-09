@@ -51,6 +51,13 @@ namespace ClassicUO.SpeechRecognition
         /// </summary>
         public ActionInferenceEngine InferenceEngine { get; private set; }
 
+        /// <summary>
+        /// Controls whether speech commands are processed when PTT mode is active.
+        /// Set to true on PTT key down, false on key up.
+        /// In AlwaysOn mode (SpeechCmdMode == 0) this is ignored.
+        /// </summary>
+        public bool SpeechCmdPttActive { get; set; } = false;
+
         private static readonly Random _random = new Random();
 
         // ── Initialization ────────────────────────────────────────────────────
@@ -250,9 +257,18 @@ namespace ClassicUO.SpeechRecognition
 
         // ── Result handlers (NAudio callback thread) ──────────────────────────
 
+        private bool IsSpeechCmdAllowed()
+        {
+            var profile = ProfileManager.CurrentProfile;
+            if (profile == null) return true;
+            if (profile.SpeechCmdMode == 1 && !SpeechCmdPttActive) return false;
+            return true;
+        }
+
         private void OnFinalResult(object sender, SttResult result)
         {
             if (!Settings.GlobalSettings.SpeechRecognitionEnabled) return;
+            if (!IsSpeechCmdAllowed()) return;
 
             SpeechLog.Debug(SpeechLogChannel.Voice, $"Final RAW text='{result.Text}' conf={result.Confidence:F2}");
             if (string.IsNullOrWhiteSpace(result.Text)) { SpeechLog.Trace(SpeechLogChannel.Voice, "Final dropped — empty text."); return; }
@@ -287,6 +303,7 @@ namespace ClassicUO.SpeechRecognition
         private void OnPartialResult(object sender, SttResult result)
         {
             if (!Settings.GlobalSettings.SpeechRecognitionEnabled) return;
+            if (!IsSpeechCmdAllowed()) return;
 
             SpeechLog.Trace(SpeechLogChannel.Voice, $"Partial RAW text='{result.Text}' conf={result.Confidence:F2}");
             if (string.IsNullOrWhiteSpace(result.Text)) { SpeechLog.Trace(SpeechLogChannel.Voice, "Partial dropped — empty text."); return; }

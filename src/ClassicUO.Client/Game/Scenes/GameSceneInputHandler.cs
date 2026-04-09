@@ -1174,6 +1174,19 @@ namespace ClassicUO.Game.Scenes
                 }
             }
 
+            // ── Speech command PTT key down ──
+            if (!e.repeat && _world.VoiceInteractionManager != null)
+            {
+                var profile = ProfileManager.CurrentProfile;
+                if (profile != null && profile.SpeechCmdMode == 1 &&
+                    profile.SpeechCmdPttKey != 0 &&
+                    keycode == (SDL.SDL_Keycode)profile.SpeechCmdPttKey)
+                {
+                    _world.VoiceInteractionManager.SpeechCmdPttActive = true;
+                    return;
+                }
+            }
+
             if (keycode == SDL.SDL_Keycode.SDLK_ESCAPE && _world.TargetManager.IsTargeting)
             {
                 _world.TargetManager.CancelTarget();
@@ -1417,6 +1430,18 @@ namespace ClassicUO.Game.Scenes
             {
                 _world.VivoxManager.EndTransmit();
                 HideSpeakingBar();
+            }
+
+            // ── Speech command PTT key release ──
+            if (_world.VoiceInteractionManager != null)
+            {
+                var profile = ProfileManager.CurrentProfile;
+                if (profile != null && profile.SpeechCmdMode == 1 &&
+                    profile.SpeechCmdPttKey != 0 &&
+                    keyUp == (SDL.SDL_Keycode)profile.SpeechCmdPttKey)
+                {
+                    _world.VoiceInteractionManager.SpeechCmdPttActive = false;
+                }
             }
 
             if (

@@ -67,7 +67,8 @@ namespace ClassicUO.Game.UI.Gumps
                 new[] { 0, (int)Buttons.Debug },
                 new[] { 1, (int)Buttons.NetStats },
                 new[] { 1, (int)Buttons.UOStore },
-                new[] { 1, (int)Buttons.GlobalChat }
+                new[] { 1, (int)Buttons.GlobalChat },
+                new[] { 0, (int)Buttons.UOWWMenu }
             };
 
             var cliloc = Client.Game.UO.FileManager.Clilocs;
@@ -85,7 +86,8 @@ namespace ClassicUO.Game.UI.Gumps
                 cliloc.GetString(1042237, ResGumps.Debug),
                 cliloc.GetString(3000169, ResGumps.NetStats),
                 cliloc.GetString(1158008, ResGumps.UOStore),
-                cliloc.GetString(1158390, ResGumps.GlobalChat)
+                cliloc.GetString(1158390, ResGumps.GlobalChat),
+                "UOWW"
             };
 
             bool hasUOStore = Client.Game.UO.Version >= ClientVersion.CV_706400;
@@ -294,6 +296,11 @@ namespace ClassicUO.Game.UI.Gumps
                     GameActions.OpenWorldMap(World);
 
                     break;
+
+                case Buttons.UOWWMenu:
+                    GameActions.Say("[menu");
+
+                    break;
             }
         }
 
@@ -310,7 +317,8 @@ namespace ClassicUO.Game.UI.Gumps
             Debug,
             NetStats,
             UOStore,
-            GlobalChat
+            GlobalChat,
+            UOWWMenu
         }
 
         private class RighClickableButton : Button
