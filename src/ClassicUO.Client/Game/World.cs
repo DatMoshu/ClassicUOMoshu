@@ -219,17 +219,31 @@ namespace ClassicUO.Game
 
             Log.Trace($"Player [0x{serial:X8}] created");
 
-            // Vivox: login with the character name once player enters world
-            VivoxManager?.OnPlayerEnterWorld(Player.Name ?? $"player_{serial:X8}");
+            // Vivox: login with a stable, *per-process* unique identifier.
+            // Player.Name is still null at this point (set later by the server),
+            // and the player serial 0x00000001 is the same on every client —
+            // so using either would collide two clients on the same Vivox user.
+            // The account username (set via CLI or settings) is the only value
+            // guaranteed to differ between concurrent clients in dev/testing.
+            string vivoxUserId = Settings.GlobalSettings.Username;
+            if (string.IsNullOrWhiteSpace(vivoxUserId))
+                vivoxUserId = Player.Name ?? $"player_{serial:X8}";
+            VivoxManager?.OnPlayerEnterWorld(vivoxUserId);
 
-            // Voice interaction: initialize and start after player is ready
-            VoiceInteractionManager.Initialize(this);
-            VoiceInteractionManager.Start();
+            // Voice interaction (Vosk STT + NAudio mic capture): DISABLED.
+            // The spike proves Vivox proximity chat works in isolation. In the
+            // main client, Vosk+NAudio opens the mic first and appears to
+            // prevent Vivox from capturing — resulting in "no one can hear
+            // each other". Keep speech recognition off until we resolve the
+            // mic-device coexistence story (WASAPI shared mode, resampling,
+            // or routing Vivox's captured audio into Vosk).
+            // TODO: re-enable once Vivox + Vosk mic-sharing is resolved.
+            // VoiceInteractionManager.Initialize(this);
+            // VoiceInteractionManager.Start();
 
-            // Auto-show speech settings gump if speech or proximity chat is enabled
-            bool speechOn = Settings.GlobalSettings.SpeechRecognitionEnabled;
+            // Auto-show speech settings gump only for prox chat (speech is off).
             bool proxOn = ProfileManager.CurrentProfile?.EnableProximityChat ?? false;
-            if (speechOn || proxOn)
+            if (proxOn)
             {
                 Client.Game.EnqueueAction(0, () =>
                     UIManager.Add(new SpeechRecognition.Gumps.SpeechSettingsGump(this)));

@@ -8,7 +8,10 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using ClassicUO.Game.Data;
+using ClassicUO.Game;
 using ClassicUO.Network.Vivox;
+using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.Managers
@@ -39,9 +42,29 @@ namespace ClassicUO.Game.Managers
         // The single proximity channel all players share
         private const string PROXIMITY_CHANNEL = "uoww-proximity";
 
+        // DIAGNOSTIC TOGGLE: when true, the client joins ONLY the positional
+        // proximity channel — faction + guild channel joins are skipped. This
+        // mirrors the VivoxSpike prototype exactly (single positional session
+        // per connector, with 3D position updates). Used to isolate whether
+        // the "no audio" bug is caused by multi-session TX selection in the
+        // main client. Set to false once multi-channel is wired up correctly.
+        private const bool USE_GLOBAL_CHANNEL = true;
+
+        // Diagnostic status log cadence (local pos + participant distances).
+        private const uint DIAGNOSTIC_LOG_INTERVAL_MS = 3000;
+        private uint _lastDiagnosticLogTick;
+
         private VivoxClient _client;
         private bool _initFailed;
         private bool _isLoggingIn;
+        private World _world;
+        private LogFile _eventLog;
+        private readonly object _eventLogLock = new object();
+
+        // Journal hues
+        private const ushort HUE_OK     = 0x0044;
+        private const ushort HUE_ERR    = 0x0026;
+        private const ushort HUE_INFO   = 0x03B2;
         private ushort _lastX;
         private ushort _lastY;
         private bool _firstPositionSent;
@@ -52,6 +75,71 @@ namespace ClassicUO.Game.Managers
         private uint _positionUpdateIntervalMs = 100; // Server-configurable
 
         public bool IsInitialized => _client != null && !_initFailed;
+
+        // ── World / Logging Attachment ───────────────────────────────────────
+
+        /// <summary>Attach the active World so voice events can be posted to the journal.</summary>
+        public void AttachWorld(World world)
+        {
+            _world = world;
+        }
+
+        /// <summary>
+        /// Opens a timestamped voice event log file at Logs/Voice/ — mirrors
+        /// every Vivox event we emit so we can review prox chat activity post-hoc.
+        /// </summary>
+        private void OpenEventLog()
+        {
+            try
+            {
+                _eventLog?.Dispose();
+                string dir = FileSystemHelper.CreateFolderIfNotExists(CUOEnviroment.ExecutablePath, "Logs", "Voice");
+                _eventLog = new LogFile(dir, "vivox.log");
+                WriteEventLog("INFO", "Vivox event log opened");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"[VivoxManager] Failed to open event log: {ex.Message}");
+            }
+        }
+
+        private void WriteEventLog(string level, string message)
+        {
+            if (_eventLog == null) return;
+            try
+            {
+                lock (_eventLogLock)
+                {
+                    _eventLog.Write($"{DateTime.Now:HH:mm:ss.fff} [{level}] {message}");
+                }
+            }
+            catch { /* log writes must never crash voice */ }
+        }
+
+        /// <summary>
+        /// Emit a voice event: trace console + event log file + optional journal.
+        /// Journal posts are skipped silently if the World/Journal isn't ready yet
+        /// (e.g. during SDK init before the player has entered the world) — the
+        /// event is still captured in the Vivox log file.
+        /// </summary>
+        private void EmitEvent(string message, ushort hue, bool toJournal, string level = "INFO")
+        {
+            Log.Trace($"[VivoxManager] {message}");
+            WriteEventLog(level, message);
+
+            if (!toJournal) return;
+            if (_world == null || _world.Journal == null || _world.Player == null) return;
+
+            try
+            {
+                string line = $"[Voice] {message}";
+                _world.Journal.Add(line, hue, "System", null, TextType.SYSTEM, true, MessageType.Regular);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"[VivoxManager] Failed to post journal message: {ex.Message}");
+            }
+        }
 
         // ── Multi-Channel State ──────────────────────────────────────────────
 
@@ -97,6 +185,8 @@ namespace ClassicUO.Game.Managers
         {
             if (_client != null) return;
 
+            OpenEventLog();
+
             try
             {
                 var config = new VivoxClient.Config(ISSUER, SECRET, DOMAIN, SERVER);
@@ -108,18 +198,18 @@ namespace ClassicUO.Game.Managers
                 _client.SpeakingChanged += OnSpeakingChanged;
 
                 await _client.InitializeAsync();
-                Log.Trace("[VivoxManager] Vivox SDK ready.");
+                EmitEvent("Vivox SDK ready", HUE_OK, toJournal: true);
 
                 LoadMuteList();
             }
             catch (DllNotFoundException)
             {
-                Log.Warn("[VivoxManager] vivoxsdk.dll not found. Voice chat disabled.");
+                EmitEvent("vivoxsdk.dll not found — voice chat disabled", HUE_ERR, toJournal: true, level: "WARN");
                 _initFailed = true;
             }
             catch (Exception ex)
             {
-                Log.Warn($"[VivoxManager] Init failed: {ex.Message}");
+                EmitEvent($"Init failed: {ex.Message}", HUE_ERR, toJournal: true, level: "WARN");
                 _initFailed = true;
             }
         }
@@ -131,8 +221,15 @@ namespace ClassicUO.Game.Managers
                 SaveMuteList();
                 _client.Dispose();
                 _client = null;
-                Log.Trace("[VivoxManager] Shutdown complete.");
+                EmitEvent("Shutdown complete", HUE_INFO, toJournal: false);
             }
+
+            try
+            {
+                _eventLog?.Dispose();
+                _eventLog = null;
+            }
+            catch { }
         }
 
         // ── Login / Logout ───────────────────────────────────────────────────
@@ -146,11 +243,12 @@ namespace ClassicUO.Game.Managers
             {
                 _isLoggingIn = true;
                 string userId = SanitizeUserId(characterName);
+                EmitEvent($"Logging in as {characterName}...", HUE_INFO, toJournal: true);
                 _client.Login(userId, characterName);
             }
             catch (Exception ex)
             {
-                Log.Warn($"[VivoxManager] Login failed: {ex.Message}");
+                EmitEvent($"Login failed: {ex.Message}", HUE_ERR, toJournal: true, level: "WARN");
                 _isLoggingIn = false;
             }
         }
@@ -163,10 +261,11 @@ namespace ClassicUO.Game.Managers
             {
                 SaveMuteList();
                 _client.Logout();
+                EmitEvent("Voice disconnected", HUE_INFO, toJournal: true);
             }
             catch (Exception ex)
             {
-                Log.Warn($"[VivoxManager] Logout error: {ex.Message}");
+                EmitEvent($"Logout error: {ex.Message}", HUE_ERR, toJournal: true, level: "WARN");
             }
 
             _isLoggingIn = false;
@@ -183,6 +282,10 @@ namespace ClassicUO.Game.Managers
         public void UpdatePosition(ushort tileX, ushort tileY, uint currentTick)
         {
             if (_client == null || !_client.IsLoggedIn) return;
+
+            // Periodic diagnostic status dump — local position, channel mode,
+            // and distance to each known participant.
+            LogDiagnosticStatus(tileX, tileY, currentTick);
 
             if (currentTick - _lastPositionUpdateTick < _positionUpdateIntervalMs)
                 return;
@@ -208,6 +311,54 @@ namespace ClassicUO.Game.Managers
             catch (Exception ex)
             {
                 Log.Warn($"[VivoxManager] Position update failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Emits a periodic diagnostic snapshot to the Vivox event log:
+        /// local player position, channel mode, known participants, and the
+        /// in-world tile distance to each mapped participant (when their
+        /// mobile is currently in our Mobiles collection).
+        /// </summary>
+        private void LogDiagnosticStatus(ushort tileX, ushort tileY, uint currentTick)
+        {
+            if (currentTick - _lastDiagnosticLogTick < DIAGNOSTIC_LOG_INTERVAL_MS)
+                return;
+            _lastDiagnosticLogTick = currentTick;
+
+            try
+            {
+                string mode = USE_GLOBAL_CHANNEL ? "SINGLE-POS" : "MULTI-POS";
+                int participantCount = _speakingStates.Count;
+
+                WriteEventLog("DIAG",
+                    $"status mode={mode} localPos=({tileX},{tileY}) participants={participantCount} " +
+                    $"prox(full={ProximityFullRange},max={ProximityMaxRange})");
+
+                // Per-participant distance line
+                foreach (var (uri, isSpeaking) in _speakingStates)
+                {
+                    string userId = ExtractUserIdFromUri(uri) ?? "?";
+                    string distStr = "unmapped";
+
+                    if (_participantToSerial.TryGetValue(uri, out uint serial)
+                        && _world != null
+                        && _world.Mobiles.TryGetValue(serial, out var mob)
+                        && mob != null)
+                    {
+                        int dx = mob.X - tileX;
+                        int dy = mob.Y - tileY;
+                        double dist = Math.Sqrt(dx * dx + dy * dy);
+                        distStr = $"pos=({mob.X},{mob.Y}) dist={dist:F1}";
+                    }
+
+                    WriteEventLog("DIAG",
+                        $"  participant='{userId}' speaking={isSpeaking} {distStr}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"[VivoxManager] Diagnostic log failed: {ex.Message}");
             }
         }
 
@@ -365,23 +516,31 @@ namespace ClassicUO.Game.Managers
         {
             if (_client == null || !_client.IsLoggedIn) return;
 
+            if (USE_GLOBAL_CHANNEL)
+            {
+                EmitEvent(
+                    "SINGLE-channel mode on — skipping faction/guild channel joins",
+                    HUE_INFO, toJournal: false);
+                return;
+            }
+
             try
             {
                 if (!string.IsNullOrEmpty(_factionChannelName))
                 {
                     _client.JoinGroupChannel(_factionChannelName);
-                    Log.Trace($"[VivoxManager] Joining faction channel: {_factionChannelName}");
+                    EmitEvent($"Joined faction channel ({_factionChannelName})", HUE_OK, toJournal: true);
                 }
 
                 if (!string.IsNullOrEmpty(_guildChannelName))
                 {
                     _client.JoinGroupChannel(_guildChannelName);
-                    Log.Trace($"[VivoxManager] Joining guild channel: {_guildChannelName}");
+                    EmitEvent($"Joined guild channel ({_guildChannelName})", HUE_OK, toJournal: true);
                 }
             }
             catch (Exception ex)
             {
-                Log.Warn($"[VivoxManager] Failed to join channels: {ex.Message}");
+                EmitEvent($"Failed to join faction/guild channels: {ex.Message}", HUE_ERR, toJournal: true, level: "WARN");
             }
         }
 
@@ -389,19 +548,24 @@ namespace ClassicUO.Game.Managers
 
         private void OnLoginStateChanged(VxLoginState state)
         {
-            Log.Trace($"[VivoxManager] Login state → {state}");
+            EmitEvent($"Login state → {state}", HUE_INFO, toJournal: false);
 
             if (state == VxLoginState.LoggedIn)
             {
                 _isLoggingIn = false;
+                EmitEvent("Voice login complete", HUE_OK, toJournal: true);
                 try
                 {
                     _client.JoinPositionalChannel(PROXIMITY_CHANNEL);
-                    Log.Trace("[VivoxManager] Joined proximity channel.");
+                    EmitEvent(
+                        USE_GLOBAL_CHANNEL
+                            ? "Joined proximity chat (SINGLE-channel mode — faction/guild skipped)"
+                            : "Joined proximity chat",
+                        HUE_OK, toJournal: true);
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn($"[VivoxManager] Failed to join proximity channel: {ex.Message}");
+                    EmitEvent($"Failed to join proximity: {ex.Message}", HUE_ERR, toJournal: true, level: "WARN");
                 }
             }
             else if (state == VxLoginState.LoggedOut)
@@ -418,16 +582,20 @@ namespace ClassicUO.Game.Managers
             // Try to map userId to a mobile serial by scanning nearby mobiles
             MapParticipantToSerial(userId, participantUri);
 
+            EmitEvent($"{userId} joined proximity", HUE_INFO, toJournal: true);
+
             // Apply mute if this player is on our mute list
             if (_mutedParticipants.Contains(userId))
             {
                 _client?.SetParticipantMuteForMe(participantUri, true);
-                Log.Trace($"[VivoxManager] Auto-muting participant: {userId}");
+                EmitEvent($"Auto-muting participant: {userId}", HUE_INFO, toJournal: false);
             }
         }
 
         private void OnParticipantLeft(string participantUri, string sessionHandle)
         {
+            var userId = ExtractUserIdFromUri(participantUri);
+
             _speakingStates.Remove(participantUri);
             _speakingEnergy.Remove(participantUri);
 
@@ -436,6 +604,11 @@ namespace ClassicUO.Game.Managers
                 _participantToSerial.Remove(participantUri);
                 _serialToParticipant.Remove(serial);
                 SpeakingStateChanged?.Invoke(serial, false);
+            }
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                EmitEvent($"{userId} left proximity", HUE_INFO, toJournal: true);
             }
         }
 

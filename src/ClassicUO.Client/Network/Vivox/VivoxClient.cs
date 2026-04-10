@@ -233,6 +233,62 @@ namespace ClassicUO.Network.Vivox
         public string GetSessionHandle(string channelName) =>
             _sessionHandles.TryGetValue(channelName, out var handle) ? handle : null;
 
+        // ── Transmission Control ──────────────────────────────────────────────
+        //
+        // After joining a channel, the session is in "receive only" state until
+        // it's explicitly designated as the active TX (transmit) session for the
+        // session group. Without this call, your mic produces silence to the
+        // channel and remote participants hear nothing.
+
+        /// <summary>Set a single session as the transmit target for its session group.</summary>
+        public void SetTransmitSession(string sessionGroupHandle, string sessionHandle)
+        {
+            if (string.IsNullOrEmpty(sessionGroupHandle) || string.IsNullOrEmpty(sessionHandle))
+                return;
+
+            VivoxNative.vx_req_sessiongroup_set_tx_session_create(out IntPtr req);
+            if (req == IntPtr.Zero)
+            {
+                Log.Warn("[Vivox] vx_req_sessiongroup_set_tx_session_create returned null.");
+                return;
+            }
+
+            VivoxStructWriter.SetTxSessionFields(req, sessionGroupHandle, sessionHandle);
+            int rc = VivoxNative.vx_issue_request(req);
+            if (rc != 0)
+                Log.Warn($"[Vivox] set_tx_session request failed: rc={rc}");
+            else
+                Log.Trace($"[Vivox] TX session set: sg='{sessionGroupHandle}' session='{sessionHandle}'");
+        }
+
+        /// <summary>Transmit to all joined sessions in the group simultaneously.</summary>
+        public void SetTransmitAllSessions(string sessionGroupHandle)
+        {
+            if (string.IsNullOrEmpty(sessionGroupHandle)) return;
+
+            VivoxNative.vx_req_sessiongroup_set_tx_all_sessions_create(out IntPtr req);
+            if (req == IntPtr.Zero) return;
+
+            VivoxStructWriter.SetTxGroupHandleField(req, sessionGroupHandle);
+            int rc = VivoxNative.vx_issue_request(req);
+            if (rc != 0) Log.Warn($"[Vivox] set_tx_all_sessions failed: rc={rc}");
+            else Log.Trace($"[Vivox] TX = all sessions in '{sessionGroupHandle}'");
+        }
+
+        /// <summary>Stop transmitting to any session in the group (mic-off).</summary>
+        public void SetTransmitNoSession(string sessionGroupHandle)
+        {
+            if (string.IsNullOrEmpty(sessionGroupHandle)) return;
+
+            VivoxNative.vx_req_sessiongroup_set_tx_no_session_create(out IntPtr req);
+            if (req == IntPtr.Zero) return;
+
+            VivoxStructWriter.SetTxGroupHandleField(req, sessionGroupHandle);
+            int rc = VivoxNative.vx_issue_request(req);
+            if (rc != 0) Log.Warn($"[Vivox] set_tx_no_session failed: rc={rc}");
+            else Log.Trace($"[Vivox] TX = none in '{sessionGroupHandle}'");
+        }
+
         // ── Message Pump ──────────────────────────────────────────────────────
 
         private const int VX_GET_MESSAGE_AVAILABLE   =  0;
@@ -344,6 +400,11 @@ namespace ClassicUO.Network.Vivox
                                 if (_proximitySessionHandle == null && sgHandle.Contains("proximity"))
                                 {
                                     _proximitySessionHandle = handle;
+
+                                    // Designate this session as the active TX target so the
+                                    // mic actually transmits to the channel. Without this,
+                                    // we receive audio but send silence.
+                                    SetTransmitSession(sgHandle, handle);
                                 }
 
                                 Log.Trace($"[Vivox] Session added: channel='{channelName}' handle='{handle}'");

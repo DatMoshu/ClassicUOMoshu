@@ -129,7 +129,7 @@ namespace ClassicUO.SpeechRecognition.Gumps
             Settings.GlobalSettings.VoiceCommandMode = next;
             Settings.GlobalSettings.SpeechRecognitionEnabled = !string.Equals(next, "off", System.StringComparison.OrdinalIgnoreCase);
             Settings.GlobalSettings.Save();
-            _modeLabel.Text = GetModeDisplayName(next);
+            _modeLabel.Text = GetCurrentModeLabel();
         }
 
         private void OnToggleProximity()

@@ -149,6 +149,7 @@ namespace ClassicUO
 #endif
             // Initialize Vivox proximity voice chat
             _vivoxManager = new VivoxManager();
+            _vivoxManager.AttachWorld(UO.World);
             _vivoxManager.Initialize();
             UO.World.VivoxManager = _vivoxManager;
 
