@@ -65,6 +65,11 @@ namespace ClassicUO.Configuration
             tgt.EnableProximityChat          = src.EnableProximityChat;
             tgt.SpeechCmdMode                = src.SpeechCmdMode;
             tgt.SpeechCmdPttKey              = src.SpeechCmdPttKey;
+            tgt.VoicePttProximityKey         = src.VoicePttProximityKey;
+            tgt.VoicePttFactionKey           = src.VoicePttFactionKey;
+            tgt.VoicePttGuildKey             = src.VoicePttGuildKey;
+            tgt.VoiceMicMuteKey              = src.VoiceMicMuteKey;
+            tgt.ProximityAlwaysOn            = src.ProximityAlwaysOn;
         }
 
         private static void ApplyHues(Profile src, Profile tgt)

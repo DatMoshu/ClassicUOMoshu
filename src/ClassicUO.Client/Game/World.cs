@@ -241,13 +241,12 @@ namespace ClassicUO.Game
             // VoiceInteractionManager.Initialize(this);
             // VoiceInteractionManager.Start();
 
-            // Auto-show speech settings gump only for prox chat (speech is off).
-            bool proxOn = ProfileManager.CurrentProfile?.EnableProximityChat ?? false;
-            if (proxOn)
-            {
-                Client.Game.EnqueueAction(0, () =>
-                    UIManager.Add(new SpeechRecognition.Gumps.SpeechSettingsGump(this)));
-            }
+            // Always spawn the pinned speech settings gump on login. It's the
+            // only UI for toggling prox chat / mic mute / speech modes, so
+            // gating it on EnableProximityChat=true creates a dead-end if the
+            // flag ever gets saved as false. The gump reads state per-frame.
+            Client.Game.EnqueueAction(0, () =>
+                UIManager.Add(new SpeechRecognition.Gumps.SpeechSettingsGump(this)));
         }
 
         public void ChangeSeason(Season season, int music)

@@ -165,6 +165,12 @@ public static class VivoxNative
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern int vx_req_sessiongroup_set_tx_no_session_create(out IntPtr req);
 
+    // Connector-scoped hard mute — mutes the capture device itself.
+    // Unlike SetTransmitNoSession (which only cuts TX routing), this actually
+    // stops the mic from recording at all across every session on the connector.
+    [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int vx_req_connector_mute_local_mic_create(out IntPtr req);
+
     // ── Response/Event Field Readers ──────────────────────────────────────────
     // vx_get_message_type (above) works for all messages.
     // For response return codes and event fields: read directly from the struct
@@ -180,6 +186,28 @@ public static class VivoxNative
     // embed the request pointer). Mixing allocators crashes vx_destroy_message.
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr vx_strdup([MarshalAs(UnmanagedType.LPStr)] string s);
+
+    // Free a string allocated by vx_get_positional_channel_uri / vx_get_*_uri etc.
+    [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int vx_free(IntPtr ptr);
+
+    // Build the fully-qualified positional channel URI with embedded 3D props.
+    // The URI itself encodes max_range/clamping_dist/rolloff/distance_model — two
+    // URIs with different 3D properties are considered different channels. Without
+    // calling this, a plain "sip:confctl-d-..." URI uses server defaults which
+    // give effectively infinite audible distance.
+    //
+    // distance_model: 0=none, 1=inverse_distance_clamped, 2=linear, 3=exponential.
+    // Returned char* must be freed with vx_free().
+    [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr vx_get_positional_channel_uri(
+        [MarshalAs(UnmanagedType.LPStr)] string name,
+        [MarshalAs(UnmanagedType.LPStr)] string realm,
+        int max_range,
+        int clamping_distance,
+        double rolloff,
+        int distance_model,
+        [MarshalAs(UnmanagedType.LPStr)] string issuer);
 }
 
 // ─── Struct Field Access ──────────────────────────────────────────────────────
@@ -342,6 +370,58 @@ public static class VivoxStructWriter
     public static void SetTxGroupHandleField(IntPtr req, string sessionGroupHandle)
     {
         Marshal.WriteIntPtr(req, 40, S(sessionGroupHandle));
+    }
+
+    // ── Connector Mute Local Mic Request ───────────────────────────────────
+    //
+    // struct vx_req_connector_mute_local_mic_t (x64, VxcRequests.h:2525 +
+    // Vxc.h:705-710 for vx_req_base_t layout, cross-checked against
+    // docs/engine-reference/vivox/muting-and-volume.md):
+    //
+    //   vx_req_base_t base (48 bytes):
+    //     vx_message_base_t message  @ 0   (24 bytes: int + pad + 2×uint64)
+    //     vx_request_type   type     @ 24  (int, 4 bytes)
+    //     VX_COOKIE         cookie   @ 28  (char*, 4+pad, aligned → really @32)
+    //     void*             vcookie  @ 40
+    //   — end base @ 48 —
+    //   VX_HANDLE connector_handle   @ 48
+    //   int       mute_level         @ 56  (1 = mute, 0 = unmute)
+    //   [4 bytes padding]            @ 60
+    //   VX_HANDLE account_handle     @ 64  (optional — null = default account)
+    //
+    // NB: the OLD offsets (40/48/56) wrote mute_level into connector_handle
+    // and IntPtr.Zero into the real mute_level slot — so every "mute" call
+    // was effectively "unmute". Fixed 2026-04-10.
+    public static void SetMuteLocalMicFields(IntPtr req, string connectorHandle, bool mute)
+    {
+        Marshal.WriteIntPtr(req, 48, S(connectorHandle));
+        Marshal.WriteInt32 (req, 56, mute ? 1 : 0);
+        Marshal.WriteIntPtr(req, 64, IntPtr.Zero); // use default account
+    }
+
+    // ── Probe: dump mute request struct bytes ───────────────────────────────
+    //
+    // Diagnostic used to verify the SetMuteLocalMicFields offsets at runtime.
+    // Call AFTER vx_req_connector_mute_local_mic_create but BEFORE submitting
+    // the request. Dumps bytes 0..96 in 8-byte qwords so we can visually
+    // confirm:
+    //   - base fields at 0..47 look sane (non-zero type/cookie)
+    //   - connector_handle pointer lands at offset 48
+    //   - mute_level int is at offset 56 with our value (1 or 0)
+    //   - account_handle null at offset 64
+    public static void DumpMuteRequestStruct(IntPtr req, string tag)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"[Vivox][PROBE] {tag} mute req @ 0x{req:X}:");
+        for (int i = 0; i < 96; i += 8)
+        {
+            long v = Marshal.ReadInt64(req, i);
+            sb.Append($"\n  +{i:D3} = 0x{v:X16}");
+            if (i == 48) sb.Append("  <- connector_handle (expect ptr)");
+            if (i == 56) sb.Append("  <- mute_level + pad (low 4 bytes = 0/1)");
+            if (i == 64) sb.Append("  <- account_handle (expect 0)");
+        }
+        Log.Trace(sb.ToString());
     }
 
     // ── 3D Position Request ───────────────────────────────────────────────────

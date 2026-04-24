@@ -78,6 +78,19 @@ namespace ClassicUO.Configuration
         // SDL_Keycode int for the speech command PTT key; 0 = unbound
         public int SpeechCmdPttKey { get; set; } = 0;
 
+        // Voice chat key bindings — stored as SDL_Keycode int (0 = unbound).
+        // Defaults map to the original hardcoded layout: F5/F6/F7/F8.
+        // SDLK_F5=0x4000003E, F6=0x4000003F, F7=0x40000040, F8=0x40000041.
+        public int VoicePttProximityKey { get; set; } = 0x4000003E; // F5
+        public int VoicePttFactionKey   { get; set; } = 0x4000003F; // F6
+        public int VoicePttGuildKey     { get; set; } = 0x40000040; // F7
+        public int VoiceMicMuteKey      { get; set; } = 0x40000041; // F8
+
+        // Proximity chat mode: false = PTT (default), true = always-on.
+        // Faction/guild are ALWAYS PTT regardless — they are broadcast
+        // channels and accidental open-mic leakage is never desirable.
+        public bool ProximityAlwaysOn { get; set; } = false;
+
         // fonts and speech
         public byte ChatFont { get; set; } = 1;
         public int SpeechDelay { get; set; } = 100;
@@ -327,6 +340,10 @@ namespace ClassicUO.Configuration
         public string WorldMapHiddenZoneFiles { get; set; } = string.Empty;
         public bool WorldMapShowGridIfZoomed { get; set; } = true;
         public bool WorldMapAllowPositionalTarget { get; set; } = false;
+        public bool WorldMapShowWarBuildings { get; set; } = true;
+        public bool WorldMapShowWatchTowerRadius { get; set; } = true;
+        public bool WorldMapShowControlPoints { get; set; } = true;
+        public bool WorldMapShowWarIntel { get; set; } = true;
         public bool ShowDPSWithDamageNumbers { get; set; } = true;
 
         public static uint GumpsVersion { get; private set; }

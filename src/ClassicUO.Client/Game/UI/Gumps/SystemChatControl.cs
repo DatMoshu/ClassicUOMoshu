@@ -12,7 +12,9 @@ using ClassicUO.Resources;
 using SDL3;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -38,10 +40,18 @@ namespace ClassicUO.Game.UI.Gumps
         private const int TEXTBOX_LENGTH = 500;
         private const int CHAT_X_OFFSET = 3;
         private const int CHAT_HEIGHT = 15;
+        private const int MAX_HISTORY = 50;
+        private const int MAX_SUGGESTIONS = 5;
+        private const string HISTORY_FILENAME = "chat_history.txt";
         private static readonly List<Tuple<ChatMode, string>> _messageHistory = new List<Tuple<ChatMode, string>>();
         private static int _messageHistoryIndex = -1;
+        private static string _loadedHistoryPath;
 
         private readonly Label _currentChatModeLabel;
+        private readonly Label _suggestionLabel;
+        private readonly List<string> _suggestionBuffer = new List<string>(MAX_SUGGESTIONS);
+        private int _tabCycleIndex = -1;
+        private string _tabCycleOrigToken;
 
         private bool _isActive;
         private ChatMode _mode = ChatMode.Default;
@@ -106,6 +116,17 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             );
 
+            Add
+            (
+                _suggestionLabel = new Label(string.Empty, true, 0x03B2, style: FontStyle.BlackBorder)
+                {
+                    IsVisible = false,
+                    AcceptMouseInput = false
+                }
+            );
+
+            LoadHistoryFromDisk();
+
             WantUpdateSize = false;
 
             _gump.World.MessageManager.MessageReceived += ChatOnMessageReceived;
@@ -140,6 +161,10 @@ namespace ClassicUO.Game.UI.Gumps
         private void TextBoxControl_TextChanged(object sender, EventArgs e)
         {
             RecalculateHuesAndSizes();
+            RefreshSuggestionLabel();
+            // Any manual edit invalidates the Tab cycle — next Tab re-scans from the current token.
+            _tabCycleIndex = -1;
+            _tabCycleOrigToken = null;
         }
 
         private void RecalculateHuesAndSizes()
@@ -391,6 +416,8 @@ namespace ClassicUO.Game.UI.Gumps
             TextBoxControl.TextChanged -= TextBoxControl_TextChanged;
             _gump.World.MessageManager.ServerPromptChanged -= MessageManager_ServerPromptChanged;
             _gump.World.MessageManager.MessageReceived -= ChatOnMessageReceived;
+            SaveHistoryToDisk();
+            ServerCommandRegistry.Clear();
             base.Dispose();
         }
 
@@ -450,12 +477,19 @@ namespace ClassicUO.Game.UI.Gumps
                 TextBoxControl.Width = Width - CHAT_X_OFFSET - chatModeOffset;
                 // if the text box has more than one line, it will grow upwards
                 TextBoxControl.Height = lines * CHAT_HEIGHT + CHAT_X_OFFSET;
-                
+
                 // the dark background should always cover chat mode and text box fully
                 _trans.X = TextBoxControl.X - CHAT_X_OFFSET - chatModeOffset;
                 _trans.Y = TextBoxControl.Y;
                 _trans.Width = Width;
                 _trans.Height = TextBoxControl.Height;
+
+                // Autocomplete strip sits directly above the entry so it never covers text.
+                if (_suggestionLabel != null && _suggestionLabel.IsVisible)
+                {
+                    _suggestionLabel.X = TextBoxControl.X;
+                    _suggestionLabel.Y = TextBoxControl.Y - CHAT_HEIGHT;
+                }
             }
         }
 
@@ -602,6 +636,9 @@ namespace ClassicUO.Game.UI.Gumps
         {
             switch (key)
             {
+                case SDL.SDL_Keycode.SDLK_TAB when IsActive && TryHandleTabComplete():
+                    break;
+
                 case SDL.SDL_Keycode.SDLK_Q when Keyboard.Ctrl && _messageHistoryIndex > -1 && !ProfileManager.CurrentProfile.DisableCtrlQWBtn:
 
                     GameScene scene = Client.Game.GetScene<GameScene>();
@@ -621,14 +658,15 @@ namespace ClassicUO.Game.UI.Gumps
                         return;
                     }
 
-                    if (_messageHistoryIndex > 0)
                     {
-                        _messageHistoryIndex--;
+                        int target = FindPrevAllowedHistoryIndex(_messageHistoryIndex);
+                        if (target >= 0)
+                        {
+                            _messageHistoryIndex = target;
+                            Mode = _messageHistory[_messageHistoryIndex].Item1;
+                            TextBoxControl.SetText(_messageHistory[_messageHistoryIndex].Item2);
+                        }
                     }
-
-                    Mode = _messageHistory[_messageHistoryIndex].Item1;
-
-                    TextBoxControl.SetText(_messageHistory[_messageHistoryIndex].Item2);
 
                     break;
 
@@ -651,17 +689,19 @@ namespace ClassicUO.Game.UI.Gumps
                         return;
                     }
 
-                    if (_messageHistoryIndex < _messageHistory.Count - 1)
                     {
-                        _messageHistoryIndex++;
-
-                        Mode = _messageHistory[_messageHistoryIndex].Item1;
-
-                        TextBoxControl.SetText(_messageHistory[_messageHistoryIndex].Item2);
-                    }
-                    else
-                    {
-                        TextBoxControl.ClearText();
+                        int target = FindNextAllowedHistoryIndex(_messageHistoryIndex);
+                        if (target >= 0 && target < _messageHistory.Count)
+                        {
+                            _messageHistoryIndex = target;
+                            Mode = _messageHistory[_messageHistoryIndex].Item1;
+                            TextBoxControl.SetText(_messageHistory[_messageHistoryIndex].Item2);
+                        }
+                        else
+                        {
+                            _messageHistoryIndex = _messageHistory.Count;
+                            TextBoxControl.ClearText();
+                        }
                     }
 
                     break;
@@ -1068,6 +1108,303 @@ namespace ClassicUO.Game.UI.Gumps
 
                     break;
             }
+        }
+
+        // -------------------------------------------------------------------
+        // Autocomplete / history / persistence
+        // -------------------------------------------------------------------
+
+        private bool TryHandleTabComplete()
+        {
+            string text = TextBoxControl.Text ?? string.Empty;
+            int caret = Math.Clamp(TextBoxControl.CaretIndex, 0, text.Length);
+
+            // Find the token enclosing the caret. Tokens are whitespace-separated.
+            int tokenStart = caret;
+            while (tokenStart > 0 && !char.IsWhiteSpace(text[tokenStart - 1]))
+            {
+                tokenStart--;
+            }
+
+            int tokenEnd = caret;
+            while (tokenEnd < text.Length && !char.IsWhiteSpace(text[tokenEnd]))
+            {
+                tokenEnd++;
+            }
+
+            // Only autocomplete the first token, and only if it begins with the command prefix.
+            if (tokenStart != 0)
+            {
+                return false;
+            }
+
+            string token = text.Substring(tokenStart, tokenEnd - tokenStart);
+            if (token.Length == 0 || token[0] != ServerCommandRegistry.Prefix)
+            {
+                return false;
+            }
+
+            string bareOriginal = token.Substring(1);
+
+            // On first Tab (or after any edit) we scan with the currently-typed prefix.
+            // On subsequent Tabs we keep cycling against the *original* prefix so the user
+            // can walk the list without the replacement narrowing the match set to 1.
+            string scanPrefix;
+            if (_tabCycleIndex < 0 || _tabCycleOrigToken == null)
+            {
+                scanPrefix = bareOriginal;
+                _tabCycleOrigToken = bareOriginal;
+                _tabCycleIndex = -1;
+            }
+            else
+            {
+                scanPrefix = _tabCycleOrigToken;
+            }
+
+            ServerCommandRegistry.Match(scanPrefix, 64, _suggestionBuffer);
+            if (_suggestionBuffer.Count == 0)
+            {
+                return false;
+            }
+
+            _tabCycleIndex = (_tabCycleIndex + 1) % _suggestionBuffer.Count;
+            string match = _suggestionBuffer[_tabCycleIndex];
+
+            string replacement = ServerCommandRegistry.Prefix + match;
+            string newText = replacement + text.Substring(tokenEnd);
+
+            // Detach handler to avoid resetting our tab cycle state while we programmatically set text.
+            TextBoxControl.TextChanged -= TextBoxControl_TextChanged;
+            TextBoxControl.SetText(newText);
+            TextBoxControl.CaretIndex = replacement.Length;
+            TextBoxControl.TextChanged += TextBoxControl_TextChanged;
+
+            RecalculateHuesAndSizes();
+            RefreshSuggestionLabel();
+            return true;
+        }
+
+        private void RefreshSuggestionLabel()
+        {
+            if (_suggestionLabel == null)
+            {
+                return;
+            }
+
+            string text = TextBoxControl.Text ?? string.Empty;
+
+            if (text.Length == 0 || text[0] != ServerCommandRegistry.Prefix || ServerCommandRegistry.Count == 0)
+            {
+                if (_suggestionLabel.IsVisible)
+                {
+                    _suggestionLabel.IsVisible = false;
+                    Resize();
+                }
+                return;
+            }
+
+            // Extract first token after the prefix.
+            int end = 1;
+            while (end < text.Length && !char.IsWhiteSpace(text[end]))
+            {
+                end++;
+            }
+            string bare = text.Substring(1, end - 1);
+
+            ServerCommandRegistry.Match(bare, MAX_SUGGESTIONS, _suggestionBuffer);
+            if (_suggestionBuffer.Count == 0)
+            {
+                if (_suggestionLabel.IsVisible)
+                {
+                    _suggestionLabel.IsVisible = false;
+                    Resize();
+                }
+                return;
+            }
+
+            var sb = new StringBuilder(128);
+            for (int i = 0; i < _suggestionBuffer.Count; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append("  ");
+                }
+                sb.Append(ServerCommandRegistry.Prefix);
+                sb.Append(_suggestionBuffer[i]);
+            }
+
+            _suggestionLabel.Text = sb.ToString();
+            _suggestionLabel.IsVisible = true;
+            Resize();
+        }
+
+        private static bool IsHistoryEntryAllowed(Tuple<ChatMode, string> entry)
+        {
+            if (entry == null || string.IsNullOrEmpty(entry.Item2))
+            {
+                return false;
+            }
+
+            string text = entry.Item2;
+            if (text[0] != ServerCommandRegistry.Prefix)
+            {
+                // Not a server command — always allowed (party, guild, etc. are mode-based).
+                return true;
+            }
+
+            // Extract first token after prefix.
+            int end = 1;
+            while (end < text.Length && !char.IsWhiteSpace(text[end]))
+            {
+                end++;
+            }
+            string bare = text.Substring(1, end - 1);
+            return ServerCommandRegistry.Contains(bare);
+        }
+
+        private static int FindPrevAllowedHistoryIndex(int fromIdx)
+        {
+            // Ctrl+Q in the existing code walks backwards but never decrements on
+            // the very first press (it replays the current index). Mirror that:
+            // if the current index is already at an allowed entry, keep it.
+            if (fromIdx >= 0 && fromIdx < _messageHistory.Count &&
+                IsHistoryEntryAllowed(_messageHistory[fromIdx]))
+            {
+                // Same behavior as the original: decrement only if room.
+                int start = fromIdx > 0 ? fromIdx - 1 : fromIdx;
+                for (int i = start; i >= 0; i--)
+                {
+                    if (IsHistoryEntryAllowed(_messageHistory[i]))
+                    {
+                        return i;
+                    }
+                }
+                return fromIdx;
+            }
+
+            for (int i = Math.Min(fromIdx, _messageHistory.Count - 1); i >= 0; i--)
+            {
+                if (IsHistoryEntryAllowed(_messageHistory[i]))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private static int FindNextAllowedHistoryIndex(int fromIdx)
+        {
+            for (int i = fromIdx + 1; i < _messageHistory.Count; i++)
+            {
+                if (IsHistoryEntryAllowed(_messageHistory[i]))
+                {
+                    return i;
+                }
+            }
+            return _messageHistory.Count; // signals "past the end — clear text"
+        }
+
+        private static void LoadHistoryFromDisk()
+        {
+            string path = GetHistoryPath();
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            // Already loaded for this profile? Don't re-load (e.g. if the chat
+            // control is reconstructed without a logout in between).
+            if (_loadedHistoryPath == path && _messageHistory.Count > 0)
+            {
+                return;
+            }
+
+            _messageHistory.Clear();
+            _messageHistoryIndex = -1;
+            _loadedHistoryPath = path;
+
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            try
+            {
+                foreach (var line in File.ReadAllLines(path))
+                {
+                    if (string.IsNullOrEmpty(line))
+                    {
+                        continue;
+                    }
+
+                    int pipe = line.IndexOf('|');
+                    if (pipe <= 0 || pipe >= line.Length - 1)
+                    {
+                        continue;
+                    }
+
+                    if (!Enum.TryParse(line.Substring(0, pipe), out ChatMode mode))
+                    {
+                        continue;
+                    }
+
+                    _messageHistory.Add(new Tuple<ChatMode, string>(mode, line.Substring(pipe + 1)));
+
+                    if (_messageHistory.Count >= MAX_HISTORY)
+                    {
+                        break;
+                    }
+                }
+            }
+            catch
+            {
+                // Corrupt history file — wipe and carry on.
+                _messageHistory.Clear();
+            }
+
+            _messageHistoryIndex = _messageHistory.Count;
+        }
+
+        private static void SaveHistoryToDisk()
+        {
+            string path = GetHistoryPath();
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            try
+            {
+                int start = Math.Max(0, _messageHistory.Count - MAX_HISTORY);
+                var sb = new StringBuilder(_messageHistory.Count * 32);
+                for (int i = start; i < _messageHistory.Count; i++)
+                {
+                    var e = _messageHistory[i];
+                    if (e == null || string.IsNullOrEmpty(e.Item2))
+                    {
+                        continue;
+                    }
+                    // Strip newlines defensively — the on-disk format is one entry per line.
+                    string text = e.Item2.Replace('\n', ' ').Replace('\r', ' ');
+                    sb.Append(e.Item1.ToString()).Append('|').Append(text).Append('\n');
+                }
+
+                File.WriteAllText(path, sb.ToString());
+            }
+            catch
+            {
+                // I/O failure is non-fatal — history is a convenience.
+            }
+        }
+
+        private static string GetHistoryPath()
+        {
+            string profilePath = ProfileManager.ProfilePath;
+            if (string.IsNullOrEmpty(profilePath))
+            {
+                return null;
+            }
+            return Path.Combine(profilePath, HISTORY_FILENAME);
         }
 
         private class ChatLineTime

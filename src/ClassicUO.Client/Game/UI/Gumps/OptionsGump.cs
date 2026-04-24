@@ -60,9 +60,16 @@ namespace ClassicUO.Game.UI.Gumps
 
         // sounds
         private Checkbox _enableSounds, _enableMusic, _footStepsSound, _combatMusic, _musicInBackground, _loginMusic;
+
+        // voice (moved out of sound — see BuildVoice)
         private Checkbox _enableSpeechRecognition, _enableProximityChat;
         private Checkbox _speechCmdPttCheckbox;
         private HotkeyBox _speechCmdPttKeyBox;
+        private Checkbox _proximityAlwaysOn;
+        private HotkeyBox _voicePttProximityKeyBox;
+        private HotkeyBox _voicePttFactionKeyBox;
+        private HotkeyBox _voicePttGuildKeyBox;
+        private HotkeyBox _voiceMicMuteKeyBox;
 
         // fonts
         private FontSelector _fontSelectorChat;
@@ -363,6 +370,19 @@ namespace ClassicUO.Game.UI.Gumps
                     10 + 30 * i++,
                     140,
                     25,
+                    ButtonAction.SwitchPage,
+                    "Voice"
+                ) { ButtonParameter = 14 }
+            );
+
+            Add
+            (
+                new NiceButton
+                (
+                    10,
+                    10 + 30 * i++,
+                    140,
+                    25,
                     ButtonAction.Activate,
                     ResGumps.IgnoreListManager
                 )
@@ -436,6 +456,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             BuildGeneral();
             BuildSounds();
+            BuildVoice();
             BuildVideo();
             BuildCommands();
             BuildFonts();
@@ -1581,8 +1602,19 @@ namespace ClassicUO.Game.UI.Gumps
 
             startY += _musicInBackground.Height + 2;
 
-            // ── Voice & Speech ──
+            Add(rightArea, PAGE);
+        }
 
+        private void BuildVoice()
+        {
+            const int PAGE = 14;
+
+            ScrollArea rightArea = new ScrollArea(190, 20, WIDTH - 210, 420, true);
+
+            int startX = 5;
+            int startY = 5;
+
+            // ── Feature toggles ─────────────────────────────────────────────
             AddLabel(rightArea, "--- Voice & Speech ---", startX, startY);
             startY += 20;
 
@@ -1594,7 +1626,6 @@ namespace ClassicUO.Game.UI.Gumps
                 startX,
                 startY
             );
-
             startY += _enableSpeechRecognition.Height + 2;
 
             _enableProximityChat = AddCheckBox
@@ -1605,10 +1636,44 @@ namespace ClassicUO.Game.UI.Gumps
                 startX,
                 startY
             );
+            startY += _enableProximityChat.Height + 2;
 
-            startY += _enableProximityChat.Height + 8;
+            _proximityAlwaysOn = AddCheckBox
+            (
+                rightArea,
+                "Proximity: Always On (Open Mic) — otherwise Push-to-Talk",
+                _currentProfile.ProximityAlwaysOn,
+                startX,
+                startY
+            );
+            startY += _proximityAlwaysOn.Height + 8;
 
-            // ── Speech command activation mode ─────────────────────────────────
+            // ── Voice chat PTT bindings ─────────────────────────────────────
+            AddLabel(rightArea, "--- Voice Chat Hotkeys ---", startX, startY);
+            startY += 20;
+
+            _voicePttProximityKeyBox = AddVoiceHotkey(
+                rightArea, "Proximity PTT:", _currentProfile.VoicePttProximityKey,
+                startX, ref startY);
+
+            _voicePttFactionKeyBox = AddVoiceHotkey(
+                rightArea, "Faction PTT:", _currentProfile.VoicePttFactionKey,
+                startX, ref startY);
+
+            _voicePttGuildKeyBox = AddVoiceHotkey(
+                rightArea, "Guild PTT:", _currentProfile.VoicePttGuildKey,
+                startX, ref startY);
+
+            _voiceMicMuteKeyBox = AddVoiceHotkey(
+                rightArea, "Mic Mute:", _currentProfile.VoiceMicMuteKey,
+                startX, ref startY);
+
+            startY += 6;
+
+            // ── Speech command activation mode ─────────────────────────────
+            AddLabel(rightArea, "--- Speech Commands ---", startX, startY);
+            startY += 20;
+
             _speechCmdPttCheckbox = AddCheckBox
             (
                 rightArea,
@@ -1620,18 +1685,58 @@ namespace ClassicUO.Game.UI.Gumps
             startY += _speechCmdPttCheckbox.Height + 2;
 
             AddLabel(rightArea, "PTT Key:", startX + 10, startY);
-
             _speechCmdPttKeyBox = new HotkeyBox
             {
-                X = startX + 80,
+                X = startX + 110,
                 Y = startY
             };
             if (_currentProfile.SpeechCmdPttKey != 0)
-                _speechCmdPttKeyBox.SetKey((SDL.SDL_Keycode)_currentProfile.SpeechCmdPttKey, SDL.SDL_Keymod.SDL_KMOD_NONE);
+            {
+                _speechCmdPttKeyBox.SetKey(
+                    (SDL.SDL_Keycode)_currentProfile.SpeechCmdPttKey,
+                    SDL.SDL_Keymod.SDL_KMOD_NONE);
+            }
             rightArea.Add(_speechCmdPttKeyBox);
             startY += 30;
 
+            // ── Open Speech Settings gump ───────────────────────────────────
+            startY += 6;
+            NiceButton openSpeechBtn = new NiceButton(
+                startX, startY, 200, 25,
+                ButtonAction.Activate,
+                "Open Speech Settings Panel")
+            {
+                ButtonParameter = (int)Buttons.OpenSpeechSettings,
+                IsSelectable = false
+            };
+            rightArea.Add(openSpeechBtn);
+            startY += 30;
+
             Add(rightArea, PAGE);
+        }
+
+        /// <summary>
+        /// Adds a single "Label: [HotkeyBox]" row and advances startY.
+        /// Shared by every voice PTT / mute binding row in BuildVoice.
+        /// </summary>
+        private HotkeyBox AddVoiceHotkey(
+            ScrollArea area, string label, int sdlKey, int startX, ref int startY)
+        {
+            AddLabel(area, label, startX + 10, startY + 4);
+
+            var box = new HotkeyBox
+            {
+                X = startX + 130,
+                Y = startY
+            };
+            if (sdlKey != 0)
+            {
+                box.SetKey((SDL.SDL_Keycode)sdlKey, SDL.SDL_Keymod.SDL_KMOD_NONE);
+            }
+            area.Add(box);
+
+            startY += 30;
+            return box;
         }
 
         private void BuildVideo()
@@ -3668,6 +3773,11 @@ namespace ClassicUO.Game.UI.Gumps
                 case Buttons.CopyShareCode:
                     HandleCopyShareCode();
                     break;
+
+                case Buttons.OpenSpeechSettings:
+                    UIManager.GetGump<ClassicUO.SpeechRecognition.Gumps.SpeechSettingsGump>()?.Dispose();
+                    UIManager.Add(new ClassicUO.SpeechRecognition.Gumps.SpeechSettingsGump(World));
+                    break;
             }
         }
 
@@ -3761,11 +3871,18 @@ namespace ClassicUO.Game.UI.Gumps
                     _loginMusic.IsChecked = true;
                     _soundsVolume.IsVisible = _enableSounds.IsChecked;
                     _musicVolume.IsVisible = _enableMusic.IsChecked;
+                    break;
+
+                case 14: // voice
                     _enableSpeechRecognition.IsChecked = true;
-                    _enableProximityChat.IsChecked = true;
+                    _enableProximityChat.IsChecked    = true;
+                    _proximityAlwaysOn.IsChecked      = false;
+                    _voicePttProximityKeyBox?.SetKey((SDL.SDL_Keycode)0x4000003E, SDL.SDL_Keymod.SDL_KMOD_NONE); // F5
+                    _voicePttFactionKeyBox?.SetKey((SDL.SDL_Keycode)0x4000003F, SDL.SDL_Keymod.SDL_KMOD_NONE);   // F6
+                    _voicePttGuildKeyBox?.SetKey((SDL.SDL_Keycode)0x40000040, SDL.SDL_Keymod.SDL_KMOD_NONE);     // F7
+                    _voiceMicMuteKeyBox?.SetKey((SDL.SDL_Keycode)0x40000041, SDL.SDL_Keymod.SDL_KMOD_NONE);      // F8
                     if (_speechCmdPttCheckbox != null) _speechCmdPttCheckbox.IsChecked = false;
                     _speechCmdPttKeyBox?.SetKey(SDL.SDL_Keycode.SDLK_UNKNOWN, SDL.SDL_Keymod.SDL_KMOD_NONE);
-
                     break;
 
                 case 3: // video
@@ -4050,6 +4167,22 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.EnableSpeechRecognition = _enableSpeechRecognition.IsChecked;
             Settings.GlobalSettings.SpeechRecognitionEnabled = _enableSpeechRecognition.IsChecked;
             _currentProfile.EnableProximityChat = _enableProximityChat.IsChecked;
+
+            bool proxModeChanged = _currentProfile.ProximityAlwaysOn != _proximityAlwaysOn.IsChecked;
+            _currentProfile.ProximityAlwaysOn = _proximityAlwaysOn.IsChecked;
+
+            _currentProfile.VoicePttProximityKey = (int)(_voicePttProximityKeyBox?.Key ?? 0);
+            _currentProfile.VoicePttFactionKey   = (int)(_voicePttFactionKeyBox?.Key   ?? 0);
+            _currentProfile.VoicePttGuildKey     = (int)(_voicePttGuildKeyBox?.Key     ?? 0);
+            _currentProfile.VoiceMicMuteKey      = (int)(_voiceMicMuteKeyBox?.Key      ?? 0);
+
+            // Apply the proximity-mode change immediately so the mic state
+            // reflects the new selection without requiring a relog.
+            if (proxModeChanged)
+            {
+                World?.VivoxManager?.ApplyProximityMode();
+            }
+
             _currentProfile.SpeechCmdMode = _speechCmdPttCheckbox?.IsChecked == true ? 1 : 0;
             _currentProfile.SpeechCmdPttKey = (int)(_speechCmdPttKeyBox?.Key ?? 0);
             // In Always On mode, keep the PTT gate open so commands aren't dropped
@@ -4762,8 +4895,9 @@ namespace ClassicUO.Game.UI.Gumps
             ImportProfileFile,
             ImportProfileCode,
             CopyShareCode,
+            OpenSpeechSettings,
 
-            Last = CopyShareCode
+            Last = OpenSpeechSettings
         }
 
 

@@ -84,6 +84,25 @@ public static class VivoxToken
         return BuildToken(issuer, secretKey, "join", from, to, expirySeconds);
     }
 
+    /// <summary>
+    /// Generates a join token against an already-formed channel URI. Used when
+    /// the URI was built by the SDK (e.g. vx_get_positional_channel_uri, which
+    /// encodes 3D attenuation properties into the channel name). The JWT "to"
+    /// claim must match the join-request URI EXACTLY, including any embedded
+    /// !p-... segment, or the server rejects the join.
+    /// </summary>
+    public static string GenerateJoinTokenForUri(
+        string issuer,
+        string secretKey,
+        string userId,
+        string channelUri,
+        string domain,
+        int expirySeconds = 90)
+    {
+        string from = $"sip:.{issuer}.{userId}.@{domain}";
+        return BuildToken(issuer, secretKey, "join", from, channelUri, expirySeconds);
+    }
+
     private static string BuildToken(
         string issuer,
         string secretKey,

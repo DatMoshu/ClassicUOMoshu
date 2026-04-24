@@ -4754,6 +4754,46 @@ namespace ClassicUO.Network
                     break;
                 }
 
+                case 0x0104: // UOWW — Open client Speech Settings gump (server request)
+                {
+                    if (world.Player == null) break;
+                    UIManager.GetGump<ClassicUO.SpeechRecognition.Gumps.SpeechSettingsGump>()?.Dispose();
+                    UIManager.Add(new ClassicUO.SpeechRecognition.Gumps.SpeechSettingsGump(world));
+                    break;
+                }
+
+                case 0x0105: // UOWW — War Buildings snapshot
+                {
+                    if (world.Player == null) break;
+                    int wbCount = p.ReadUInt16BE();
+                    var list = new System.Collections.Generic.List<ClassicUO.Game.UI.Gumps.WorldMapGump.WarBuilding>(wbCount);
+                    for (int bi = 0; bi < wbCount; bi++)
+                    {
+                        byte btype  = p.ReadUInt8();
+                        byte bmap   = p.ReadUInt8();
+                        ushort bx   = p.ReadUInt16BE();
+                        ushort by   = p.ReadUInt16BE();
+                        byte bowner = p.ReadUInt8();
+                        ushort brad = p.ReadUInt16BE();
+                        list.Add(new ClassicUO.Game.UI.Gumps.WorldMapGump.WarBuilding(btype, bmap, bx, by, bowner, brad));
+                    }
+                    ClassicUO.Game.UI.Gumps.WorldMapGump.CacheWarBuildings(list);
+                    break;
+                }
+
+                case 0x0106: // UOWW — War Intel message
+                {
+                    if (world.Player == null) break;
+                    byte imap = p.ReadUInt8();
+                    ushort ix = p.ReadUInt16BE();
+                    ushort iy = p.ReadUInt16BE();
+                    byte isev = p.ReadUInt8();
+                    int ilen  = p.ReadUInt16BE();
+                    string itxt = ilen > 0 ? p.ReadUTF8(ilen) : string.Empty;
+                    ClassicUO.Game.UI.Gumps.WorldMapGump.PushWarIntel(imap, ix, iy, isev, itxt);
+                    break;
+                }
+
                 case 0x0120: // UOWW — ProfileMetadata (registry lookup result)
                 {
                     if (world.Player == null) break;
@@ -4795,6 +4835,21 @@ namespace ClassicUO.Network
                     string sender    = p.ReadASCII();
                     string shareCode = p.ReadASCII();
                     UIManager.Add(new ClassicUO.Game.UI.Gumps.ProfileShareRequestGump(world, sender, shareCode));
+                    break;
+                }
+
+                case 0x0110: // UOWW — CommandListSync
+                {
+                    ushort cmdCount = p.ReadUInt16BE();
+                    ClassicUO.Game.Managers.ServerCommandRegistry.BeginReplace(cmdCount);
+                    for (int i = 0; i < cmdCount; i++)
+                    {
+                        byte nameLen = p.ReadUInt8();
+                        string name = p.ReadASCII(nameLen);
+                        byte minLevel = p.ReadUInt8();
+                        ClassicUO.Game.Managers.ServerCommandRegistry.Add(name, minLevel);
+                    }
+                    ClassicUO.Game.Managers.ServerCommandRegistry.EndReplace();
                     break;
                 }
 

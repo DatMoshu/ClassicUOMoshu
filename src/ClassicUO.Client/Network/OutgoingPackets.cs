@@ -4667,5 +4667,40 @@ namespace ClassicUO.Network
             Plugin.ProcessRecvPacket(writer.AllocatedBuffer, ref len);
             writer.Dispose();
         }
+
+        // ---- Navigation packets (0xF4) -----------------------------------------
+
+        public static void Send_NavWalkTo(this NetClient socket, short x, short y)
+        {
+            var writer = new StackDataWriter(64);
+            writer.WriteUInt8(0xF4);
+            writer.WriteUInt16BE(8);  // total length: 1 + 2 + 1 + 2 + 2
+            writer.WriteUInt8(0x01);  // sub-cmd: WalkTo
+            writer.WriteInt16BE(x);
+            writer.WriteInt16BE(y);
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
+        public static void Send_NavFollow(this NetClient socket, uint serial)
+        {
+            var writer = new StackDataWriter(64);
+            writer.WriteUInt8(0xF4);
+            writer.WriteUInt16BE(8);  // total length: 1 + 2 + 1 + 4
+            writer.WriteUInt8(0x02);  // sub-cmd: Follow
+            writer.WriteUInt32BE(serial);
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
+        public static void Send_NavStopWalk(this NetClient socket)
+        {
+            var writer = new StackDataWriter(64);
+            writer.WriteUInt8(0xF4);
+            writer.WriteUInt16BE(4);  // total length: 1 + 2 + 1
+            writer.WriteUInt8(0x03);  // sub-cmd: StopWalk
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
     }
 }

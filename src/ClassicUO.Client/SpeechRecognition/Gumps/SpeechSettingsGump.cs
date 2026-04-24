@@ -17,7 +17,7 @@ namespace ClassicUO.SpeechRecognition.Gumps
     internal sealed class SpeechSettingsGump : Gump
     {
         private const int WIDTH = 220;
-        private const int HEIGHT = 90;
+        private const int HEIGHT = 114;
         private const int MARGIN = 8;
         private const int ROW_HEIGHT = 22;
         private const int LABEL_COL = 65;
@@ -99,6 +99,17 @@ namespace ClassicUO.SpeechRecognition.Gumps
             proxBtn.MouseUp += (sender, e) => OnToggleProximity();
             Add(proxBtn);
 
+            y += ROW_HEIGHT;
+
+            // ── Bindings shortcut row — opens the rebind panel ──
+            Add(new Label("Keys:", true, WHITE, 0, 1) { X = MARGIN, Y = y });
+            Add(new Label("PTT / Mute", true, WHITE, 0, 1) { X = LABEL_COL, Y = y });
+
+            var bindBtn = new NiceButton(WIDTH - MARGIN - 50, y - 2, 50, 20, ButtonAction.Activate, "Rebind")
+            { IsSelectable = false };
+            bindBtn.MouseUp += (sender, e) => OpenBindings();
+            Add(bindBtn);
+
             // Subscribe to voice state changes
             if (world.VivoxManager != null)
             {
@@ -140,6 +151,14 @@ namespace ClassicUO.SpeechRecognition.Gumps
             profile.EnableProximityChat = !profile.EnableProximityChat;
             _proxLabel.Text = profile.EnableProximityChat ? "● ON" : "● OFF";
             _proxLabel.Hue = profile.EnableProximityChat ? (ushort)0x004F : (ushort)0x0026;
+        }
+
+        private void OpenBindings()
+        {
+            // One-at-a-time. Close any existing instance before opening a new
+            // one so repeated clicks don't stack duplicates on the desktop.
+            Game.Managers.UIManager.GetGump<VoiceBindingsGump>()?.Dispose();
+            Game.Managers.UIManager.Add(new VoiceBindingsGump(World));
         }
 
         private void OnVoiceStateChanged()

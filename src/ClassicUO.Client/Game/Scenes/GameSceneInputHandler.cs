@@ -1140,25 +1140,43 @@ namespace ClassicUO.Game.Scenes
                 return;
 
             // ── Voice PTT Keys ──
-            // F5-F8 are function keys — they never type characters into the chat box,
-            // so no IsActive guard needed.
+            // Function keys never type characters into the chat box, so no
+            // IsActive guard needed. Bindings live on the active profile
+            // (default F5/F6/F7/F8) and can be remapped via VoiceBindingsGump.
             if (!e.repeat && _world.VivoxManager != null)
             {
-                switch (keycode)
+                var vprofile = ProfileManager.CurrentProfile;
+                if (vprofile != null)
                 {
-                    case SDL.SDL_Keycode.SDLK_F5:
-                        _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Proximity);
-                        ShowSpeakingBar();
+                    int kc = (int)keycode;
+
+                    if (vprofile.VoicePttProximityKey != 0 && kc == vprofile.VoicePttProximityKey)
+                    {
+                        // Proximity is a special case: if always-on mode is active
+                        // the key does nothing (mic is already transmitting).
+                        if (!vprofile.ProximityAlwaysOn)
+                        {
+                            _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Proximity);
+                            ShowSpeakingBar();
+                        }
                         return;
-                    case SDL.SDL_Keycode.SDLK_F6:
+                    }
+
+                    if (vprofile.VoicePttFactionKey != 0 && kc == vprofile.VoicePttFactionKey)
+                    {
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Faction);
                         ShowSpeakingBar();
                         return;
-                    case SDL.SDL_Keycode.SDLK_F7:
+                    }
+
+                    if (vprofile.VoicePttGuildKey != 0 && kc == vprofile.VoicePttGuildKey)
+                    {
                         _world.VivoxManager.BeginTransmit(Managers.VoiceChannel.Guild);
                         ShowSpeakingBar();
                         return;
-                    case SDL.SDL_Keycode.SDLK_F8:
+                    }
+
+                    if (vprofile.VoiceMicMuteKey != 0 && kc == vprofile.VoiceMicMuteKey)
                     {
                         _world.VivoxManager.ToggleMicMute();
                         bool muted = _world.VivoxManager.IsMicMuted;
@@ -1425,11 +1443,22 @@ namespace ClassicUO.Game.Scenes
 
             // ── Voice PTT Key Release ──
             SDL.SDL_Keycode keyUp = (SDL.SDL_Keycode)e.key;
-            if (_world.VivoxManager != null &&
-                (keyUp == SDL.SDL_Keycode.SDLK_F5 || keyUp == SDL.SDL_Keycode.SDLK_F6 || keyUp == SDL.SDL_Keycode.SDLK_F7))
+            if (_world.VivoxManager != null)
             {
-                _world.VivoxManager.EndTransmit();
-                HideSpeakingBar();
+                var vprofileUp = ProfileManager.CurrentProfile;
+                if (vprofileUp != null)
+                {
+                    int kcUp = (int)keyUp;
+                    bool isProxKey    = vprofileUp.VoicePttProximityKey != 0 && kcUp == vprofileUp.VoicePttProximityKey;
+                    bool isFactionKey = vprofileUp.VoicePttFactionKey   != 0 && kcUp == vprofileUp.VoicePttFactionKey;
+                    bool isGuildKey   = vprofileUp.VoicePttGuildKey     != 0 && kcUp == vprofileUp.VoicePttGuildKey;
+
+                    if (isFactionKey || isGuildKey || (isProxKey && !vprofileUp.ProximityAlwaysOn))
+                    {
+                        _world.VivoxManager.EndTransmit();
+                        HideSpeakingBar();
+                    }
+                }
             }
 
             // ── Speech command PTT key release ──

@@ -142,14 +142,56 @@ namespace ClassicUO.Network.Vivox
         // Track pending channel joins so SessionAdded can map handle → channel name
         private readonly Dictionary<string, string> _pendingJoins = new(); // sgHandle → channelName
 
+        // Positional channel 3D attenuation (tile units — UO tiles).
+        // Without these, Vivox falls back to dashboard defaults (effectively no
+        // attenuation) and every player in the channel is heard at full volume
+        // regardless of distance. These values embed into the channel URI via
+        // vx_get_positional_channel_uri — they are NOT a per-request setting.
+        //
+        //   MAX_RANGE          — tiles beyond this: silent. ~UO "say" range.
+        //   CLAMPING_DISTANCE  — tiles within this: full volume.
+        //   ROLLOFF            — attenuation curve steepness (1.0 = default).
+        //   DISTANCE_MODEL     — 1 = inverse_distance_clamped (default curve).
+        //
+        // Bumping MAX_RANGE makes the world feel bigger but makes crowded
+        // streets noisier; drop it for tighter prox chat.
+        private const int    PROX_MAX_RANGE         = 18;
+        private const int    PROX_CLAMPING_DISTANCE = 2;
+        private const double PROX_ROLLOFF           = 1.1;
+        private const int    PROX_DISTANCE_MODEL    = 1; // inverse_distance_clamped
+
         public void JoinPositionalChannel(string channelName)
         {
             EnsureLoggedIn();
 
-            string joinToken = VivoxToken.GeneratePositionalJoinToken(
-                _config.Issuer, _config.SecretKey, _userId, channelName, _config.Domain);
+            // Build the URI via the SDK so the 3D properties are encoded in the
+            // exact format the server expects. A hand-built "sip:confctl-d-..."
+            // string drops the attenuation params and gives infinite range.
+            string channelUri;
+            IntPtr uriPtr = VivoxNative.vx_get_positional_channel_uri(
+                name:               channelName,
+                realm:               _config.Domain,
+                max_range:           PROX_MAX_RANGE,
+                clamping_distance:   PROX_CLAMPING_DISTANCE,
+                rolloff:             PROX_ROLLOFF,
+                distance_model:      PROX_DISTANCE_MODEL,
+                issuer:              _config.Issuer);
+            if (uriPtr == IntPtr.Zero)
+            {
+                Log.Warn("[Vivox] vx_get_positional_channel_uri returned null — falling back to plain URI (no attenuation!)");
+                channelUri = $"sip:confctl-d-{_config.Issuer}.{channelName}@{_config.Domain}";
+            }
+            else
+            {
+                channelUri = Marshal.PtrToStringAnsi(uriPtr);
+                VivoxNative.vx_free(uriPtr);
+            }
 
-            string channelUri = $"sip:confctl-d-{_config.Issuer}.{channelName}@{_config.Domain}";
+            // Token "to" claim MUST match the join URI exactly, including the
+            // embedded 3D properties segment, or Vivox rejects the join.
+            string joinToken = VivoxToken.GenerateJoinTokenForUri(
+                _config.Issuer, _config.SecretKey, _userId, channelUri, _config.Domain);
+
             string sgHandle   = $"sg_{channelName}";
 
             _pendingJoins[sgHandle] = channelName;
@@ -289,6 +331,52 @@ namespace ClassicUO.Network.Vivox
             else Log.Trace($"[Vivox] TX = none in '{sessionGroupHandle}'");
         }
 
+        /// <summary>
+        /// Hard-mute the local capture device at the connector level. This stops
+        /// the mic from recording entirely — unlike SetTransmitNoSession which
+        /// only cuts the routing path. Use this as the real mute for PTT gating
+        /// and F8, especially important when multiple clients run on one PC.
+        /// </summary>
+        public void SetLocalMicMuted(bool muted)
+        {
+            if (!_initialized) return;
+
+            VivoxNative.vx_req_connector_mute_local_mic_create(out IntPtr req);
+            if (req == IntPtr.Zero)
+            {
+                Log.Warn("[Vivox] vx_req_connector_mute_local_mic_create returned null.");
+                return;
+            }
+
+            // One-shot probe: dump the request struct before and after the
+            // writer the first N times we issue this request. This verifies
+            // the SetMuteLocalMicFields offsets are correct against the
+            // live SDK. Remove or gate this once confirmed.
+            bool probe = _probeMuteRemaining > 0;
+            if (probe)
+            {
+                VivoxStructWriter.DumpMuteRequestStruct(req, $"BEFORE muted={muted}");
+            }
+
+            VivoxStructWriter.SetMuteLocalMicFields(req, ConnectorHandle, muted);
+
+            if (probe)
+            {
+                VivoxStructWriter.DumpMuteRequestStruct(req, $"AFTER  muted={muted}");
+                _probeMuteRemaining--;
+            }
+
+            int rc = VivoxNative.vx_issue_request(req);
+            if (rc != 0)
+                Log.Warn($"[Vivox] connector_mute_local_mic submit failed: rc={rc}");
+            else
+                Log.Trace($"[Vivox] Capture device {(muted ? "MUTED" : "UNMUTED")} submitted (connector='{ConnectorHandle}', watch for subtype=61 response)");
+        }
+
+        // Number of remaining SetLocalMicMuted calls that should dump the
+        // request struct for offset verification. Decremented each call.
+        private int _probeMuteRemaining = 2;
+
         // ── Message Pump ──────────────────────────────────────────────────────
 
         private const int VX_GET_MESSAGE_AVAILABLE   =  0;
@@ -362,7 +450,13 @@ namespace ClassicUO.Network.Vivox
                     }
                     else
                     {
-                        Log.Trace($"[Vivox] Response OK: subtype={subtype}");
+                        // Call out the mute response specifically so we can
+                        // correlate it with the probe dumps. subtype=61 =
+                        // resp_connector_mute_local_mic (Vxc.h:564).
+                        if (subtype == 61)
+                            Log.Trace("[Vivox] Response OK: subtype=61 (connector_mute_local_mic applied)");
+                        else
+                            Log.Trace($"[Vivox] Response OK: subtype={subtype}");
                     }
                     break;
 

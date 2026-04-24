@@ -8,6 +8,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game;
 using ClassicUO.Network.Vivox;
@@ -42,13 +43,12 @@ namespace ClassicUO.Game.Managers
         // The single proximity channel all players share
         private const string PROXIMITY_CHANNEL = "uoww-proximity";
 
-        // DIAGNOSTIC TOGGLE: when true, the client joins ONLY the positional
-        // proximity channel — faction + guild channel joins are skipped. This
-        // mirrors the VivoxSpike prototype exactly (single positional session
-        // per connector, with 3D position updates). Used to isolate whether
-        // the "no audio" bug is caused by multi-session TX selection in the
-        // main client. Set to false once multi-channel is wired up correctly.
-        private const bool USE_GLOBAL_CHANNEL = true;
+        // TEST HARNESS: when true, auto-join hardcoded faction/guild channels
+        // at login so PTT can be exercised without the server 0xBF 0x0101
+        // packet. Remove (or set false) once ModernUO emits real channel info.
+        private const bool AUTO_JOIN_TEST_CHANNELS = true;
+        private const string TEST_FACTION_CHANNEL = "uoww-test-faction";
+        private const string TEST_GUILD_CHANNEL   = "uoww-test-guild";
 
         // Diagnostic status log cadence (local pos + participant distances).
         private const uint DIAGNOSTIC_LOG_INTERVAL_MS = 3000;
@@ -57,6 +57,7 @@ namespace ClassicUO.Game.Managers
         private VivoxClient _client;
         private bool _initFailed;
         private bool _isLoggingIn;
+        private bool _needsInitialSilence; // set after login; cleared on first successful SilenceMic
         private World _world;
         private LogFile _eventLog;
         private readonly object _eventLogLock = new object();
@@ -328,7 +329,7 @@ namespace ClassicUO.Game.Managers
 
             try
             {
-                string mode = USE_GLOBAL_CHANNEL ? "SINGLE-POS" : "MULTI-POS";
+                string mode = "MULTI-POS";
                 int participantCount = _speakingStates.Count;
 
                 WriteEventLog("DIAG",
@@ -363,6 +364,64 @@ namespace ClassicUO.Game.Managers
         }
 
         // ── PTT (Push-to-Talk) ───────────────────────────────────────────────
+        //
+        // TX-routing model (multi-channel):
+        //   Default (nothing held)  → mic transmits to PROXIMITY (always-on).
+        //   F6 held                 → mic transmits to FACTION, proximity silent.
+        //   F7 held                 → mic transmits to GUILD, proximity silent.
+        //   Key release             → back to PROXIMITY default.
+        //
+        // Each channel lives in its own sessiongroup (sgHandle = "sg_{name}"),
+        // so switching means silencing the current sg with set_tx_no_session
+        // and activating the new sg with set_tx_session. Proximity stays TX'd
+        // continuously as the baseline.
+
+        /// <summary>Maps a VoiceChannel enum to the currently-configured channel name.</summary>
+        private string ChannelName(VoiceChannel channel) => channel switch
+        {
+            VoiceChannel.Proximity => PROXIMITY_CHANNEL,
+            VoiceChannel.Faction   => _factionChannelName,
+            VoiceChannel.Guild     => _guildChannelName,
+            _                      => null,
+        };
+
+        /// <summary>Route the mic to the specified channel's sessiongroup.</summary>
+        private void RouteMicTo(VoiceChannel channel)
+        {
+            if (_client == null || !_client.IsLoggedIn) return;
+
+            string targetName = ChannelName(channel);
+            if (string.IsNullOrEmpty(targetName))
+            {
+                EmitEvent($"PTT: channel {channel} has no name (not joined yet)",
+                    HUE_ERR, toJournal: false, level: "WARN");
+                return;
+            }
+
+            string targetSession = _client.GetSessionHandle(targetName);
+            if (string.IsNullOrEmpty(targetSession))
+            {
+                EmitEvent($"PTT: channel {channel} ({targetName}) has no session handle yet",
+                    HUE_ERR, toJournal: false, level: "WARN");
+                return;
+            }
+
+            string targetSg = "sg_" + targetName;
+
+            // Silence every OTHER joined channel's sg so the mic only feeds
+            // the target. Safe to call on sgs we don't actively transmit to.
+            foreach (var other in new[] { VoiceChannel.Proximity, VoiceChannel.Faction, VoiceChannel.Guild })
+            {
+                if (other == channel) continue;
+                string otherName = ChannelName(other);
+                if (string.IsNullOrEmpty(otherName)) continue;
+                if (string.IsNullOrEmpty(_client.GetSessionHandle(otherName))) continue;
+                _client.SetTransmitNoSession("sg_" + otherName);
+            }
+
+            _client.SetTransmitSession(targetSg, targetSession);
+            WriteEventLog("DIAG", $"TX route → {channel} ({targetName})");
+        }
 
         /// <summary>Begin transmitting on the specified channel (called on key down).</summary>
         public void BeginTransmit(VoiceChannel channel)
@@ -371,20 +430,44 @@ namespace ClassicUO.Game.Managers
 
             ActiveChannel = channel;
             VoiceStateChanged?.Invoke();
+            // Open the capture device BEFORE routing TX — without this the mic
+            // stays hard-muted at the connector level from login/SilenceMic.
+            _client.SetLocalMicMuted(false);
+            RouteMicTo(channel);
             Log.Trace($"[VivoxManager] PTT begin: {channel}");
         }
 
-        /// <summary>Stop transmitting (called on key up).</summary>
+        /// <summary>Stop transmitting (called on key up) — silences the mic until the next PTT press.</summary>
         public void EndTransmit()
         {
             if (ActiveChannel == VoiceChannel.None) return;
 
             ActiveChannel = VoiceChannel.None;
             VoiceStateChanged?.Invoke();
+
+            // All voice channels are PTT-gated now, including proximity.
+            // Silence every sg so nothing leaks out when no key is held.
+            if (_client != null && _client.IsLoggedIn)
+                SilenceMic();
+
             Log.Trace("[VivoxManager] PTT end.");
         }
 
-        /// <summary>Toggle global mic mute (M key).</summary>
+        /// <summary>
+        /// Hard-mute the capture device at the connector level. This alone
+        /// stops the mic from recording — no need to also fiddle with TX
+        /// routing. (Calling SetTransmitNoSession on SGs that never had
+        /// their TX set — faction/guild — returns VX_E_INVALID_ARGUMENT
+        /// 1008, so we don't bother.)
+        /// </summary>
+        private void SilenceMic()
+        {
+            if (_client == null || !_client.IsLoggedIn) return;
+
+            _client.SetLocalMicMuted(true);
+        }
+
+        /// <summary>Toggle global mic mute (bound key, default F8).</summary>
         public void ToggleMicMute()
         {
             IsMicMuted = !IsMicMuted;
@@ -392,10 +475,61 @@ namespace ClassicUO.Game.Managers
             if (IsMicMuted)
             {
                 ActiveChannel = VoiceChannel.None;
+                WriteEventLog("DIAG", "Hard mute → capture device silenced");
+                if (_client != null && _client.IsLoggedIn)
+                    SilenceMic();
+            }
+            else
+            {
+                // Unmute: restore whatever mode the user picked. Proximity
+                // always-on resumes open transmit; PTT modes stay silent
+                // until the next key press.
+                ApplyProximityMode();
             }
 
             VoiceStateChanged?.Invoke();
             Log.Trace($"[VivoxManager] Mic muted: {IsMicMuted}");
+        }
+
+        /// <summary>
+        /// Apply the current ProximityAlwaysOn profile setting. Called on
+        /// login, after F8 unmute, and whenever the user toggles the mode in
+        /// the bindings gump. When always-on is enabled this opens the
+        /// capture device and routes TX to proximity; when PTT is selected
+        /// this falls back to a hard mute (waiting for a key press).
+        ///
+        /// Faction/guild are always PTT and are untouched by this method.
+        /// </summary>
+        public void ApplyProximityMode()
+        {
+            if (_client == null || !_client.IsLoggedIn) return;
+            if (IsMicMuted) { SilenceMic(); return; }
+
+            var profile = ProfileManager.CurrentProfile;
+            bool alwaysOn = profile != null && profile.ProximityAlwaysOn;
+
+            if (alwaysOn)
+            {
+                string sess = _client.GetSessionHandle(PROXIMITY_CHANNEL);
+                if (string.IsNullOrEmpty(sess))
+                {
+                    // Session handle not ready yet — retry from OnParticipantJoined.
+                    _needsInitialSilence = false;
+                    return;
+                }
+
+                ActiveChannel = VoiceChannel.Proximity;
+                _client.SetLocalMicMuted(false);
+                _client.SetTransmitSession("sg_" + PROXIMITY_CHANNEL, sess);
+                WriteEventLog("DIAG", "Proximity always-on → TX routed to proximity");
+                VoiceStateChanged?.Invoke();
+            }
+            else
+            {
+                ActiveChannel = VoiceChannel.None;
+                SilenceMic();
+                VoiceStateChanged?.Invoke();
+            }
         }
 
         // ── Per-Player Mute ──────────────────────────────────────────────────
@@ -516,14 +650,6 @@ namespace ClassicUO.Game.Managers
         {
             if (_client == null || !_client.IsLoggedIn) return;
 
-            if (USE_GLOBAL_CHANNEL)
-            {
-                EmitEvent(
-                    "SINGLE-channel mode on — skipping faction/guild channel joins",
-                    HUE_INFO, toJournal: false);
-                return;
-            }
-
             try
             {
                 if (!string.IsNullOrEmpty(_factionChannelName))
@@ -557,15 +683,26 @@ namespace ClassicUO.Game.Managers
                 try
                 {
                     _client.JoinPositionalChannel(PROXIMITY_CHANNEL);
-                    EmitEvent(
-                        USE_GLOBAL_CHANNEL
-                            ? "Joined proximity chat (SINGLE-channel mode — faction/guild skipped)"
-                            : "Joined proximity chat",
-                        HUE_OK, toJournal: true);
+                    EmitEvent("Joined proximity chat", HUE_OK, toJournal: true);
+                    // Mic state depends on profile: PTT = silence until a
+                    // key is held; always-on = open transmit as soon as the
+                    // session handle exists. ApplyProximityMode handles both.
+                    // The session is created async, so we also retry from
+                    // OnParticipantJoined once the handle becomes available.
+                    _needsInitialSilence = true;
+                    SilenceMic();
+                    ApplyProximityMode();
                 }
                 catch (Exception ex)
                 {
                     EmitEvent($"Failed to join proximity: {ex.Message}", HUE_ERR, toJournal: true, level: "WARN");
+                }
+
+                // Test harness: auto-join hardcoded faction/guild channels so
+                // PTT can be exercised without the server sending 0xBF 0x0101.
+                if (AUTO_JOIN_TEST_CHANNELS)
+                {
+                    SetChannelInfo(TEST_FACTION_CHANNEL, TEST_GUILD_CHANNEL);
                 }
             }
             else if (state == VxLoginState.LoggedOut)
@@ -576,6 +713,16 @@ namespace ClassicUO.Game.Managers
 
         private void OnParticipantJoined(string participantUri, string sessionHandle)
         {
+            // Prox/faction/guild sessions create async — once any participant
+            // (including self) joins, the session handle exists and we can
+            // finally apply the chosen proximity mode (PTT silence or
+            // always-on transmit).
+            if (_needsInitialSilence)
+            {
+                _needsInitialSilence = false;
+                ApplyProximityMode();
+            }
+
             var userId = ExtractUserIdFromUri(participantUri);
             if (userId == null) return;
 

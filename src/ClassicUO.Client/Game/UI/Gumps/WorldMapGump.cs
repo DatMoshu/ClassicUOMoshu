@@ -9,6 +9,7 @@ using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.IO;
+using ClassicUO.Network;
 using ClassicUO.Network.Encryption;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
@@ -71,6 +72,48 @@ namespace ClassicUO.Game.UI.Gumps
         // Last quadrant ownership received from server (packet 0xBF/0x0103).
         // Cached so reopening the map gump shows current war state, not stale JSON colors.
         private static byte[] _lastKnownOwners = null;
+
+        // --- War overlay state (packets 0xBF/0x0105 + 0x0106) ---
+
+        /// <summary>
+        /// One placed war building (watchtower or control point) as sent by the server.
+        /// Decoded from packet 0xBF/0x0105.
+        /// </summary>
+        public readonly struct WarBuilding
+        {
+            public const byte TypeWatchTower  = 0x01;
+            public const byte TypeControlPoint = 0x02;
+
+            public readonly byte Type;
+            public readonly byte MapId;
+            public readonly ushort X;
+            public readonly ushort Y;
+            public readonly byte Owner;   // 0x00 Minax, 0x02 TB, 0xFF neutral
+            public readonly ushort Radius;
+
+            public WarBuilding(byte type, byte mapId, ushort x, ushort y, byte owner, ushort radius)
+            {
+                Type = type; MapId = mapId; X = x; Y = y; Owner = owner; Radius = radius;
+            }
+        }
+
+        /// <summary>
+        /// One war intel event (combat / capture / sighting). Decoded from 0xBF/0x0106.
+        /// </summary>
+        internal sealed class WarIntelEntry
+        {
+            public byte MapId;
+            public ushort X;
+            public ushort Y;
+            public byte Severity; // 0 info, 1 warn, 2 alert
+            public string Text;
+            public DateTime ReceivedUtc;
+        }
+
+        private static List<WarBuilding> _warBuildings = new();
+        private static readonly LinkedList<WarIntelEntry> _warIntel = new();
+        private const int WAR_INTEL_MAX = 64;
+        private const int WAR_INTEL_TTL_MINUTES = 15;
         private SpriteFont _markerFont = Fonts.Map1;
         private int _markerFontIndex = 1;
         private readonly Dictionary<string, ContextMenuItemEntry> _options = new Dictionary<string, ContextMenuItemEntry>();
@@ -90,7 +133,12 @@ namespace ClassicUO.Game.UI.Gumps
         private int _zoomIndex = 4;
         private bool _showGridIfZoomed = true;
         private bool _showZoneLabels = true;
+        private bool _showWarBuildings = true;
+        private bool _showWatchTowerRadius = true;
+        private bool _showControlPoints = true;
+        private bool _showWarIntel = true;
         private bool _allowPositionalTarget = false;
+        private bool _walkToClickMode = false;
         private WMapMarker _gotoMarker;
 
         private int _mapLoading;
@@ -211,6 +259,10 @@ namespace ClassicUO.Game.UI.Gumps
 
             _showGridIfZoomed = ProfileManager.CurrentProfile.WorldMapShowGridIfZoomed;
             _allowPositionalTarget = ProfileManager.CurrentProfile.WorldMapAllowPositionalTarget;
+            _showWarBuildings = ProfileManager.CurrentProfile.WorldMapShowWarBuildings;
+            _showWatchTowerRadius = ProfileManager.CurrentProfile.WorldMapShowWatchTowerRadius;
+            _showControlPoints = ProfileManager.CurrentProfile.WorldMapShowControlPoints;
+            _showWarIntel = ProfileManager.CurrentProfile.WorldMapShowWarIntel;
             TopMost = ProfileManager.CurrentProfile.WorldMapTopMost;
             FreeView = ProfileManager.CurrentProfile.WorldMapFreeView;
         }
@@ -251,6 +303,10 @@ namespace ClassicUO.Game.UI.Gumps
 
             ProfileManager.CurrentProfile.WorldMapShowGridIfZoomed = _showGridIfZoomed;
             ProfileManager.CurrentProfile.WorldMapAllowPositionalTarget = _allowPositionalTarget;
+            ProfileManager.CurrentProfile.WorldMapShowWarBuildings = _showWarBuildings;
+            ProfileManager.CurrentProfile.WorldMapShowWatchTowerRadius = _showWatchTowerRadius;
+            ProfileManager.CurrentProfile.WorldMapShowControlPoints = _showControlPoints;
+            ProfileManager.CurrentProfile.WorldMapShowWarIntel = _showWarIntel;
         }
 
         private bool ParseBool(string boolStr)
@@ -347,10 +403,46 @@ namespace ClassicUO.Game.UI.Gumps
             _options["show_grid_if_zoomed"] = new ContextMenuItemEntry(ResGumps.GridIfZoomed, () => { _showGridIfZoomed = !_showGridIfZoomed; SaveSettings();  }, true, _showGridIfZoomed);
             _options["show_zone_labels"] = new ContextMenuItemEntry("Zone Labels", () => { _showZoneLabels = !_showZoneLabels; SaveSettings(); }, true, _showZoneLabels);
 
+            // War overlays (packets 0xBF/0x0105 + 0x0106)
+            _options["show_war_buildings"] = new ContextMenuItemEntry("Watch Towers", () => { _showWarBuildings = !_showWarBuildings; SaveSettings(); }, true, _showWarBuildings);
+            _options["show_watchtower_radius"] = new ContextMenuItemEntry("Watch Tower Radius", () => { _showWatchTowerRadius = !_showWatchTowerRadius; SaveSettings(); }, true, _showWatchTowerRadius);
+            _options["show_control_points"] = new ContextMenuItemEntry("Control Points", () => { _showControlPoints = !_showControlPoints; SaveSettings(); }, true, _showControlPoints);
+            _options["show_war_intel"] = new ContextMenuItemEntry("Intel Messages", () => { _showWarIntel = !_showWarIntel; SaveSettings(); }, true, _showWarIntel);
+            _options["clear_war_intel"] = new ContextMenuItemEntry("Clear Intel Log", () => { _warIntel.Clear(); });
+
             _options["reset_map_cache"] = new ContextMenuItemEntry(ResGumps.ResetMapsCache, () =>
             {
                 Directory.GetFiles(_mapsCachePath, "*.png").ForEach(s => File.Delete(s));
             }, false);
+
+            _options["walk_to_location"] = new ContextMenuItemEntry(
+                "Walk To Location",
+                () => UIManager.Add(new LocationGoGump(World, (x, y) =>
+                {
+                    if (NetClient.Socket.IsConnected)
+                    {
+                        NetClient.Socket.Send_NavWalkTo((short)x, (short)y);
+                    }
+                }))
+            );
+
+            _options["walk_to_click"] = new ContextMenuItemEntry(
+                "Walk To Click",
+                () => { _walkToClickMode = !_walkToClickMode; },
+                true,
+                _walkToClickMode
+            );
+
+            _options["stop_walking"] = new ContextMenuItemEntry(
+                "Stop Walking",
+                () =>
+                {
+                    if (NetClient.Socket.IsConnected)
+                    {
+                        NetClient.Socket.Send_NavStopWalk();
+                    }
+                }
+            );
         }
 
         public void GoToMarker(int x, int y, bool isManualType)
@@ -369,6 +461,24 @@ namespace ClassicUO.Game.UI.Gumps
 
             _center.X = x;
             _center.Y = y;
+        }
+
+        private void BuildContextMenuForWar(ContextMenuControl parent)
+        {
+            ContextMenuItemEntry war = new ContextMenuItemEntry("War");
+
+            war.Add(_options["show_war_buildings"]);
+            war.Add(_options["show_control_points"]);
+            war.Add(_options["show_watchtower_radius"]);
+            war.Add(new ContextMenuItemEntry(""));
+            war.Add(_options["show_war_intel"]);
+            war.Add(_options["clear_war_intel"]);
+            war.Add(new ContextMenuItemEntry(""));
+            // Grid + zone toggles also live here so every war-related map option is in one place
+            war.Add(_options["show_grid_if_zoomed"]);
+            war.Add(_options["show_zone_labels"]);
+
+            parent.Add(war);
         }
 
         private void BuildContextMenuForZones(ContextMenuControl parent)
@@ -490,6 +600,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             ContextMenu.Add(markersEntry);
 
+            BuildContextMenuForWar(ContextMenu);
             BuildContextMenuForZones(ContextMenu);
 
             ContextMenuItemEntry namesHpBarEntry = new ContextMenuItemEntry(ResGumps.NamesHealthbars);
@@ -502,6 +613,13 @@ namespace ClassicUO.Game.UI.Gumps
 
             ContextMenu.Add("", null);
             ContextMenu.Add(_options["goto_location"]);
+
+            ContextMenuItemEntry navEntry = new ContextMenuItemEntry("Navigation");
+            navEntry.Add(_options["walk_to_location"]);
+            navEntry.Add(_options["walk_to_click"]);
+            navEntry.Add(_options["stop_walking"]);
+            ContextMenu.Add(navEntry);
+
             ContextMenu.Add(_options["flip_map"]);
             ContextMenu.Add(_options["top_most"]);
 
@@ -1496,6 +1614,38 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         /// <summary>
+        /// Called by packet handler 0xBF/0x0105 to cache the current set of
+        /// war buildings (watchtowers + control points) pushed by the server.
+        /// </summary>
+        public static void CacheWarBuildings(List<WarBuilding> buildings)
+        {
+            _warBuildings = buildings ?? new List<WarBuilding>();
+        }
+
+        /// <summary>
+        /// Called by packet handler 0xBF/0x0106 to push a new war intel entry
+        /// into the client's rolling buffer.
+        /// </summary>
+        public static void PushWarIntel(byte mapId, ushort x, ushort y, byte severity, string text)
+        {
+            var entry = new WarIntelEntry
+            {
+                MapId = mapId,
+                X = x,
+                Y = y,
+                Severity = severity,
+                Text = text ?? string.Empty,
+                ReceivedUtc = DateTime.UtcNow
+            };
+
+            _warIntel.AddFirst(entry);
+            while (_warIntel.Count > WAR_INTEL_MAX)
+            {
+                _warIntel.RemoveLast();
+            }
+        }
+
+        /// <summary>
         /// Called by packet handler (0xBF sub 0x0103) to update quadrant colors in real-time.
         /// Maps faction owner index to color and updates the Zone objects directly.
         /// Since zones are redrawn each frame, color changes appear instantly.
@@ -2089,6 +2239,8 @@ namespace ClassicUO.Game.UI.Gumps
                     DrawZone(batcher, zone, gX, gY, halfWidth, halfHeight, Zoom, layerDepth);
                 }
             }
+
+            DrawWarOverlay(batcher, gX, gY, halfWidth, halfHeight, Zoom, layerDepth);
 
             if (_showMultis)
             {
@@ -2867,6 +3019,199 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        // --- War overlay rendering (packets 0x0105 + 0x0106) ---
+
+        private static Color WarOwnerColor(byte owner) => owner switch
+        {
+            0 => Color.Red,                    // Minax
+            2 => new Color(80, 140, 255),      // True Britannians
+            _ => new Color(200, 200, 200)      // Neutral / unknown
+        };
+
+        private void DrawWarOverlay(
+            UltimaBatcher2D batcher,
+            int x,
+            int y,
+            int width,
+            int height,
+            float zoom,
+            float layerDepth)
+        {
+            Vector3 hueVector = ShaderHueTranslator.GetHueVector(0);
+
+            // --- Watchtower intel radii ---
+            if (_showWarBuildings && _showWatchTowerRadius)
+            {
+                foreach (var b in _warBuildings)
+                {
+                    if (b.MapId != _map.Index || b.Type != WarBuilding.TypeWatchTower || b.Radius <= 0)
+                    {
+                        continue;
+                    }
+
+                    DrawWarRadius(batcher, b.X, b.Y, b.Radius, WarOwnerColor(b.Owner),
+                                  x, y, width, height, zoom, layerDepth);
+                }
+            }
+
+            // --- Building icons ---
+            if (_showWarBuildings)
+            {
+                foreach (var b in _warBuildings)
+                {
+                    if (b.MapId != _map.Index)
+                    {
+                        continue;
+                    }
+
+                    if (b.Type == WarBuilding.TypeControlPoint && !_showControlPoints)
+                    {
+                        continue;
+                    }
+
+                    DrawWarBuildingIcon(batcher, b, x, y, width, height, zoom, layerDepth);
+                }
+            }
+
+            // --- Intel dots + labels ---
+            if (_showWarIntel && _warIntel.Count > 0)
+            {
+                var now = DateTime.UtcNow;
+                var cutoff = TimeSpan.FromMinutes(WAR_INTEL_TTL_MINUTES);
+                float pulse = (float)((Math.Sin(Time.Ticks * 0.006) + 1.0) * 0.5);
+
+                WarIntelEntry newest = null;
+                Vector2 newestPos = default;
+
+                foreach (var entry in _warIntel)
+                {
+                    if (entry.MapId != _map.Index)
+                    {
+                        continue;
+                    }
+
+                    var age = now - entry.ReceivedUtc;
+                    if (age > cutoff)
+                    {
+                        continue;
+                    }
+
+                    float alpha = 1f - (float)(age.TotalSeconds / cutoff.TotalSeconds);
+                    if (alpha <= 0f) continue;
+
+                    var pos = WorldPointToGumpPoint(entry.X, entry.Y, x, y, width, height, zoom);
+                    if (pos.X < x || pos.X > x + Width || pos.Y < y || pos.Y > y + Height)
+                    {
+                        continue;
+                    }
+
+                    int size = 6 + (int)(pulse * 4);
+                    Color dotColor = entry.Severity switch
+                    {
+                        0 => Color.Yellow,
+                        1 => Color.Orange,
+                        _ => Color.Red
+                    };
+
+                    var tex = SolidColorTextureCache.GetTexture(dotColor);
+                    batcher.Draw(
+                        tex,
+                        new Rectangle((int)pos.X - size / 2, (int)pos.Y - size / 2, size, size),
+                        new Vector3(0f, 1f, Microsoft.Xna.Framework.MathHelper.Clamp(alpha, 0f, 1f)),
+                        layerDepth);
+
+                    if (newest == null)
+                    {
+                        newest = entry;
+                        newestPos = pos;
+                    }
+                }
+
+                // Label for the most recent intel entry
+                if (newest != null && !string.IsNullOrEmpty(newest.Text))
+                {
+                    DrawWarIntelLabel(batcher, newest.Text, newestPos, layerDepth);
+                }
+            }
+        }
+
+        private void DrawWarRadius(
+            UltimaBatcher2D batcher,
+            int wx, int wy, int radiusTiles, Color color,
+            int x, int y, int width, int height, float zoom, float layerDepth)
+        {
+            // Polyline circle in gump space (radius scales with zoom).
+            var center = WorldPointToGumpPoint(wx, wy, x, y, width, height, zoom);
+            float pr = radiusTiles * zoom;
+            if (pr < 2f) return;
+
+            const int segs = 32;
+            var tex = SolidColorTextureCache.GetTexture(color);
+            var hue = new Vector3(0f, 1f, 0.35f); // semi-transparent outline
+
+            Vector2 prev = default;
+            for (int i = 0; i <= segs; i++)
+            {
+                double a = (i / (double)segs) * Math.PI * 2.0;
+                var p = new Vector2(center.X + (float)Math.Cos(a) * pr, center.Y + (float)Math.Sin(a) * pr);
+                if (i > 0)
+                {
+                    batcher.DrawLine(tex, prev, p, hue, 1, layerDepth);
+                }
+                prev = p;
+            }
+        }
+
+        private void DrawWarBuildingIcon(
+            UltimaBatcher2D batcher,
+            WarBuilding b,
+            int x, int y, int width, int height, float zoom, float layerDepth)
+        {
+            var pos = WorldPointToGumpPoint(b.X, b.Y, x, y, width, height, zoom);
+            if (pos.X < x || pos.X > x + Width || pos.Y < y || pos.Y > y + Height)
+            {
+                return;
+            }
+
+            var color = WarOwnerColor(b.Owner);
+            var tex = SolidColorTextureCache.GetTexture(color);
+            var hue = ShaderHueTranslator.GetHueVector(0);
+
+            if (b.Type == WarBuilding.TypeWatchTower)
+            {
+                // Diamond — 4 rotated triangles approximated by two crossed lines + outline
+                const int S = 6;
+                var rect = new Rectangle((int)pos.X - S, (int)pos.Y - S, S * 2, S * 2);
+                batcher.Draw(tex, rect, hue, layerDepth);
+
+                var outline = SolidColorTextureCache.GetTexture(Color.Black);
+                batcher.DrawRectangle(outline, rect.X, rect.Y, rect.Width, rect.Height, hue, layerDepth);
+            }
+            else // Control point — filled square with outline
+            {
+                const int S = 5;
+                var rect = new Rectangle((int)pos.X - S, (int)pos.Y - S, S * 2, S * 2);
+                batcher.Draw(tex, rect, hue, layerDepth);
+
+                var outline = SolidColorTextureCache.GetTexture(Color.White);
+                batcher.DrawRectangle(outline, rect.X - 1, rect.Y - 1, rect.Width + 2, rect.Height + 2, hue, layerDepth);
+            }
+        }
+
+        private void DrawWarIntelLabel(UltimaBatcher2D batcher, string text, Vector2 pos, float layerDepth)
+        {
+            var size = Fonts.Map1.MeasureString(text);
+            int xx = (int)(pos.X - size.X / 2);
+            int yy = (int)(pos.Y - size.Y - 10);
+
+            var bg = SolidColorTextureCache.GetTexture(Color.Black);
+            var hueBg = new Vector3(0f, 1f, 0.6f);
+            batcher.Draw(bg, new Rectangle(xx - 2, yy - 2, (int)size.X + 4, (int)size.Y + 4), hueBg, layerDepth);
+
+            var hue = ShaderHueTranslator.GetHueVector(0);
+            batcher.DrawString(Fonts.Map1, text, xx, yy, hue, layerDepth);
+        }
+
         private void DrawGrid
         (
             UltimaBatcher2D batcher,
@@ -3141,6 +3486,12 @@ namespace ClassicUO.Game.UI.Gumps
             if (allowTarget && button == MouseButtonType.Left)
             {
                 HandlePositionTarget();
+            }
+
+            if (_walkToClickMode && button == MouseButtonType.Left && !_isScrolling && !Keyboard.Alt && NetClient.Socket.IsConnected)
+            {
+                CanvasToWorld(x, y, out int wx, out int wy);
+                NetClient.Socket.Send_NavWalkTo((short)wx, (short)wy);
             }
 
             if (button == MouseButtonType.Left && !Keyboard.Alt)
