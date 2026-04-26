@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UOWorldWar.Launcher.FirstRunWindow"
+        Width="640" Height="400"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Title="UO World War — First Run">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+    <StackPanel Grid.Row="0" Spacing="8">
+      <TextBlock FontSize="22" FontWeight="Bold" Text="Welcome to UO World War" />
+      <TextBlock TextWrapping="Wrap" Opacity="0.85"
+        Text="To play, we need a copy of EA's Ultima Online client. We tried to find one automatically and couldn't. EA gives the client away for free as &quot;Ultima Online: Endless Journey&quot; — install it once, and you'll never see this screen again." />
+    </StackPanel>
+
+    <StackPanel Grid.Row="1" Spacing="12" Margin="0,24,0,0">
+      <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontStyle="Italic" Opacity="0.75" />
+
+      <Border BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock FontWeight="SemiBold" Text="1. Get the free EA client" />
+          <Button x:Name="OpenEaButton" Content="Open Endless Journey download page →" />
+        </StackPanel>
+      </Border>
+
+      <Border BorderBrush="#444" BorderThickness="1" CornerRadius="4" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock FontWeight="SemiBold" Text="2. Tell us where it lives" />
+          <TextBlock Opacity="0.75" TextWrapping="Wrap"
+            Text="If you've already installed UO somewhere else, point us at the folder that contains client.exe." />
+          <Button x:Name="BrowseButton" Content="Browse for UO folder…" />
+          <TextBlock x:Name="SelectedPathText" Opacity="0.7" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
+      <Button x:Name="CancelButton" Content="Quit" />
+      <Button x:Name="ContinueButton" Content="Continue →" IsEnabled="False" Classes="accent" />
+    </StackPanel>
+  </Grid>
+</Window>
