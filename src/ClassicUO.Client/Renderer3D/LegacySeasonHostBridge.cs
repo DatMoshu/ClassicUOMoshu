@@ -3,7 +3,7 @@
 // Lives outside the World domain folder because it depends on concrete types in the legacy
 // ClassicUO.Renderer.Renderer3D namespace; the service-side interface stays decoupled.
 
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

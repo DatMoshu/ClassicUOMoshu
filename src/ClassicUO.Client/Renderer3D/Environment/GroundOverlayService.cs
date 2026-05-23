@@ -3,7 +3,7 @@
 
 using System;
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>Pure-delegation implementation of <see cref="IGroundOverlayService"/>.</summary>
     public sealed class GroundOverlayService : IGroundOverlayService

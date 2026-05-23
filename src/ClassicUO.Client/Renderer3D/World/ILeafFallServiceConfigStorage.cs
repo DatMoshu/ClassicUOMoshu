@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // ClassicUO — World domain (ADR-012 Phase 4).
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     public readonly struct LeafFallServiceConfigLoadResult
     {

@@ -3,7 +3,7 @@
 // Bridges legacy World3DRenderer static fields to IRenderCameraSource. Replaced with
 // a renderer-owned camera-state publisher in Phase 3 when World3DRenderer migrates.
 
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Renderer.Renderer3D

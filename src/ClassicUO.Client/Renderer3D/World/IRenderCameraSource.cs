@@ -3,7 +3,7 @@
 
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Gateway exposing the most recently captured camera matrices and viewport

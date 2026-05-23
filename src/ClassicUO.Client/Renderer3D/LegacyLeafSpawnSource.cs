@@ -3,7 +3,7 @@
 // Static3DRenderer.LastTreeAnchors list.
 
 using System.Collections.Generic;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

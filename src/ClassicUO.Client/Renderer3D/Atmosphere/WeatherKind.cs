@@ -9,7 +9,7 @@ namespace ClassicUO.Renderer.Atmosphere
     /// round-trip during the transitional period.
     /// </summary>
     /// <remarks>
-    /// Note: this ordering differs from <see cref="ClassicUO.Renderer.World.SeasonWeatherKind"/>
+    /// Note: this ordering differs from <see cref="ClassicUO.Renderer.WorldEnv.SeasonWeatherKind"/>
     /// (which was authored before <c>WeatherKind</c> existed). The
     /// <c>LegacySeasonHostBridge</c> maps between the two with an explicit switch.
     /// </remarks>

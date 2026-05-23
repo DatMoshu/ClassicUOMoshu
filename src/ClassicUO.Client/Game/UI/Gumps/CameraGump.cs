@@ -16,8 +16,8 @@ using ClassicUO.Renderer.Renderer3D;
 using ClassicUO.Renderer.Atmosphere;
 using ClassicUO.Renderer.Camera;
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.Environment;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.EnvRender;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps

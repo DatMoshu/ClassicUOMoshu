@@ -2,7 +2,7 @@
 // ClassicUO — production adapter wiring ITreeSeasonCacheGateway to the legacy
 // TreeTextureCache static class.
 
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

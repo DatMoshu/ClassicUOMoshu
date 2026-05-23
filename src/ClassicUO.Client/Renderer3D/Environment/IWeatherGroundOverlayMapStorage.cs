@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using ClassicUO.Renderer.Atmosphere;
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// Loaded weather → ground overlay map. Either side may be absent on parse failure;

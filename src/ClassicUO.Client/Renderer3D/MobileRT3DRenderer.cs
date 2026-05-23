@@ -17,6 +17,7 @@ using ClassicUO.Game.GameObjects;
 using ClassicUO.Renderer.Mobiles; // MobileOutfit (migrated to Mobiles domain in ADR-012)
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using World = ClassicUO.Game.World;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

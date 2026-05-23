@@ -3,7 +3,7 @@
 
 using ClassicUO.Renderer.Atmosphere;
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// Read-only lookup of weather → ground overlay rules. Loaded once at startup from

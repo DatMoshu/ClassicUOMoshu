@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // ClassicUO — Environment domain (ADR-012).
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// Sky-rendering mode. Mirrors legacy <c>World3DRenderer.SkyboxMode</c> bit-for-bit;

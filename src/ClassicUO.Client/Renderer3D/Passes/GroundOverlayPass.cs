@@ -7,9 +7,9 @@ using ClassicUO.Game.Map;
 using ClassicUO.Renderer.Renderer3D; // legacy SeasonCycleDriver + Weather3DSystem + W3DR ground-effect state
 using ClassicUO.Renderer.Atmosphere;
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 using ClassicUO.Renderer.Terrain;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 

@@ -3,7 +3,7 @@
 
 using System;
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 
 namespace ClassicUO.Renderer.Passes
 {

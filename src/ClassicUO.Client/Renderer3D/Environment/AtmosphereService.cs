@@ -4,7 +4,7 @@
 using System;
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// State-owning implementation of <see cref="IAtmosphereService"/>. Holds the target

@@ -4,7 +4,7 @@
 using System;
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Pure-delegation implementation of <see cref="IRenderQualityService"/>.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // ClassicUO — production adapter (ADR-012 §6).
 
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

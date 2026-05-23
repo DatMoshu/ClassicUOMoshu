@@ -3,7 +3,7 @@
 
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Gump/admin contract for the 3D world's render-quality tunables. Replaces direct

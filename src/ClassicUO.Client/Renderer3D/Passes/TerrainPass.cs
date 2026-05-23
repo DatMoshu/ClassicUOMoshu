@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using ClassicUO.Game.Map;
 using ClassicUO.Renderer.Renderer3D; // legacy Multi3DRenderer/Static3DRenderer/Player3DRenderer toggles (still raw statics)
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 using ClassicUO.Renderer.Terrain;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 

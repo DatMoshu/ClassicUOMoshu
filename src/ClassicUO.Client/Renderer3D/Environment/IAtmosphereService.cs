@@ -3,7 +3,7 @@
 
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// Owns the atmospheric color-lerp state — each frame, the active

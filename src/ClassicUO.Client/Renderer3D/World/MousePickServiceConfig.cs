@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // ClassicUO — IMousePickService configuration (ADR-012).
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Configuration for <see cref="IMousePickService"/>. Decouples the picker from

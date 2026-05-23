@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

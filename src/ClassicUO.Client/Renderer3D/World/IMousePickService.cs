@@ -3,7 +3,7 @@
 
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Converts a screen-space mouse position into UO tile coordinates by unprojecting

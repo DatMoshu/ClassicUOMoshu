@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Provides the current frame's visible-tree spawn anchors to <see cref="LeafFallService"/>.

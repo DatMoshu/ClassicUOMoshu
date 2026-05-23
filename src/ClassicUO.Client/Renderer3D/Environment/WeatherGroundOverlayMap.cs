@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using ClassicUO.Renderer.Atmosphere;
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// Production implementation of <see cref="IWeatherGroundOverlayMap"/>. Pure-state

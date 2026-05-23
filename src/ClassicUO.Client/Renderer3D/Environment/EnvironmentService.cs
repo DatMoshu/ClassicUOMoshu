@@ -4,7 +4,7 @@
 using System;
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// Pure-delegation implementation of <see cref="IEnvironmentService"/>. Every read+write

@@ -3,7 +3,7 @@
 // Bridges the legacy World3DRenderer ground-overlay state to IGroundEffectBridge.
 // Replaced when the per-frame ground pass migrates into a renderer service.
 
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

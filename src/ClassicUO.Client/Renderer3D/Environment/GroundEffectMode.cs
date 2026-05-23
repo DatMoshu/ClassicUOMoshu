@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // ClassicUO — Environment domain (ADR-012).
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// Ground-overlay rendering mode (wet sheen, snow accumulation, off). Mirrors legacy

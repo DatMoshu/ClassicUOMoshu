@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using ClassicUO.Renderer.Atmosphere;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

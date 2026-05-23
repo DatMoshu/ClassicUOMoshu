@@ -10,7 +10,7 @@ using ClassicUO.Renderer.Core;
 namespace ClassicUO.Renderer.Renderer3D
 {
     /// <summary>
-    /// Backwards-compatible facade over <see cref="ClassicUO.Renderer.World.ITreeSeasonService"/>.
+    /// Backwards-compatible facade over <see cref="ClassicUO.Renderer.WorldEnv.ITreeSeasonService"/>.
     /// </summary>
     [Obsolete("Use ITreeSeasonService via Renderer3DServices. Will be removed in ADR-012 Phase 3.")]
     internal static class TreeSeasonManager
@@ -25,7 +25,7 @@ namespace ClassicUO.Renderer.Renderer3D
             Winter = 3,
         }
 
-        private static ClassicUO.Renderer.World.ITreeSeasonService Service
+        private static ClassicUO.Renderer.WorldEnv.ITreeSeasonService Service
             => Renderer3DHost.Services.TreeSeason;
 
         public static bool Enabled
@@ -37,7 +37,7 @@ namespace ClassicUO.Renderer.Renderer3D
         public static TreeSeason Season
         {
             get => (TreeSeason)(int)Service.Season;
-            set => Service.SetSeason((ClassicUO.Renderer.World.TreeSeasonKind)(int)value);
+            set => Service.SetSeason((ClassicUO.Renderer.WorldEnv.TreeSeasonKind)(int)value);
         }
 
         public static float YearProgress
@@ -83,7 +83,7 @@ namespace ClassicUO.Renderer.Renderer3D
         }
 
         public static void SnapToSeason(TreeSeason s)
-            => Service.SnapToSeason((ClassicUO.Renderer.World.TreeSeasonKind)(int)s);
+            => Service.SnapToSeason((ClassicUO.Renderer.WorldEnv.TreeSeasonKind)(int)s);
 
         public static int QuantisedCacheToken() => Service.QuantisedCacheToken();
     }

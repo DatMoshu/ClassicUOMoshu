@@ -16,7 +16,7 @@ using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer.Renderer3D;
 using ClassicUO.Renderer.Atmosphere;
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 
 namespace ClassicUO.Game.UI.Gumps
 {

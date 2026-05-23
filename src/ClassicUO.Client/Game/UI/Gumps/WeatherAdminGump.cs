@@ -12,7 +12,7 @@ using ClassicUO.Renderer.Core;
 // Renderer3D namespace would otherwise collide with the domain enums.
 using WeatherKind = ClassicUO.Renderer.Atmosphere.WeatherKind;
 using WindGustMode = ClassicUO.Renderer.Atmosphere.WindGustMode;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 using ClassicUO.Renderer.Statics;
 
 namespace ClassicUO.Game.UI.Gumps

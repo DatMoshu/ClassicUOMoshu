@@ -6,7 +6,7 @@
 
 using System;
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 

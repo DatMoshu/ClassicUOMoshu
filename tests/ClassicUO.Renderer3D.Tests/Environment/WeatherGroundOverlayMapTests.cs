@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using ClassicUO.Renderer.Atmosphere;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 using FluentAssertions;
 using Xunit;
 

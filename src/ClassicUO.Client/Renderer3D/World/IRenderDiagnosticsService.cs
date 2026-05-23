@@ -3,7 +3,7 @@
 
 using Microsoft.Xna.Framework;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Gump/admin read-only view over the renderer's last-frame counters. Replaces

@@ -2,7 +2,7 @@
 // ClassicUO — production adapter (ADR-012 §6).
 // Bridges the legacy World3DRenderer per-frame counters to IRenderDiagnosticsBridge.
 
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Renderer.Renderer3D

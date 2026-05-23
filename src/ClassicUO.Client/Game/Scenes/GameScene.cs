@@ -12,7 +12,7 @@ using ClassicUO.Renderer;
 using ClassicUO.Renderer.Renderer3D;
 using ClassicUO.Renderer.Atmosphere;
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;

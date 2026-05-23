@@ -21,7 +21,7 @@ using System;
 using ClassicUO.Renderer.Atmosphere;
 using ClassicUO.Renderer.Core;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Production implementation of <see cref="ISeasonService"/>. Allocation-free in the

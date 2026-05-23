@@ -3,7 +3,7 @@
 
 using Microsoft.Xna.Framework.Graphics;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Provides the leaf-quad texture to <see cref="LeafFallService"/>'s draw path.

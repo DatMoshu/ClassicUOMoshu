@@ -15,7 +15,7 @@ using ClassicUO.Renderer.Core;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Production implementation of <see cref="ILeafFallService"/>. Pool-based; allocates

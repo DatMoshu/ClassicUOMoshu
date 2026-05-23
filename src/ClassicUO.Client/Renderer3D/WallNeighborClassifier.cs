@@ -8,6 +8,7 @@ using System;
 using ClassicUO.Game;
 using ClassicUO.Renderer.Core;
 using ClassicUO.Renderer.Statics;
+using World = ClassicUO.Game.World;
 
 #nullable disable
 

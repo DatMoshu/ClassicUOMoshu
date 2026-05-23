@@ -3,7 +3,7 @@
 // Bridges the legacy World3DRenderer render-quality tunables to IRenderQualityBridge.
 // Replaced when render-state moves into a dedicated render service.
 
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Renderer.Renderer3D

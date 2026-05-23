@@ -21,6 +21,7 @@ using System.Text.Json.Nodes;
 using ClassicUO.Game;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Map;
+using World = ClassicUO.Game.World;
 using Microsoft.Xna.Framework.Graphics;
 
 using SharpGLTF.Geometry;

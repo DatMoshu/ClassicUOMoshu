@@ -7,10 +7,10 @@ using ClassicUO.Renderer.Atmosphere;
 using ClassicUO.Renderer.Audio;
 using ClassicUO.Renderer.Camera;
 using ClassicUO.Renderer.Effects;
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 using ClassicUO.Renderer.Mobiles;
 using ClassicUO.Renderer.Statics;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 
 namespace ClassicUO.Renderer.Core
 {

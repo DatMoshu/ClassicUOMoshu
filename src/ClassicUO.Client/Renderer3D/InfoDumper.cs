@@ -11,6 +11,7 @@ using System.Text;
 using ClassicUO.Game;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using World = ClassicUO.Game.World;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

@@ -12,7 +12,7 @@ using ClassicUO.Renderer.Renderer3D;
 using ClassicUO.Utility;
 using ClassicUO.Renderer.Camera;
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 
 namespace ClassicUO.Game.UI.Gumps
 {

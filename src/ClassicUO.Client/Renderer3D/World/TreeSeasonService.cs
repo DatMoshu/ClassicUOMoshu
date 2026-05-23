@@ -4,7 +4,7 @@
 using System;
 using ClassicUO.Renderer.Core;
 
-namespace ClassicUO.Renderer.World
+namespace ClassicUO.Renderer.WorldEnv
 {
     /// <summary>
     /// Production implementation of <see cref="ITreeSeasonService"/>. Pure-state service —

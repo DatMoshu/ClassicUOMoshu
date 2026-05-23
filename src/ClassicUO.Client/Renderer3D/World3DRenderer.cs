@@ -126,7 +126,7 @@ namespace ClassicUO.Renderer.Renderer3D
         // State migrated to IAtmosphereService (ADR-012 session 58). These statics now
         // delegate so existing writers (Weather3DSystem.SetType, one-shot effects)
         // keep working unchanged. Lerp body lives in AtmosphereService.Tick(dt).
-        private static ClassicUO.Renderer.Environment.IAtmosphereService AtmoSvc
+        private static ClassicUO.Renderer.EnvRender.IAtmosphereService AtmoSvc
             => ClassicUO.Renderer.Core.Renderer3DHost.Services.Atmosphere;
 
         public static Color BackgroundColorTarget

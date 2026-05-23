@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // ClassicUO — production adapter wiring ILeafTextureProvider to LeafTextureFactory.
 
-using ClassicUO.Renderer.World;
+using ClassicUO.Renderer.WorldEnv;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Renderer.Renderer3D

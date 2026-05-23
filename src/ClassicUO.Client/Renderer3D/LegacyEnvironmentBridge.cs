@@ -3,7 +3,7 @@
 // Bridges the legacy World3DRenderer background+fog+sky state to IEnvironmentBridge.
 // Replaced when the per-frame sky/fog rendering migrates into a renderer service.
 
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Renderer.Renderer3D

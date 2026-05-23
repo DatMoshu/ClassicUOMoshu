@@ -4,7 +4,7 @@
 using System;
 using ClassicUO.Renderer.Renderer3D; // legacy Multi3DRenderer + Static3DRenderer
 using ClassicUO.Renderer.Core;
-using ClassicUO.Renderer.World; // IRenderQualityService
+using ClassicUO.Renderer.WorldEnv; // IRenderQualityService
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Renderer.Passes

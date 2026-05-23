@@ -12,12 +12,12 @@ using Microsoft.Xna.Framework.Graphics;
 namespace ClassicUO.Renderer.Renderer3D
 {
     /// <summary>
-    /// Backwards-compatible facade over <see cref="ClassicUO.Renderer.World.ILeafFallService"/>.
+    /// Backwards-compatible facade over <see cref="ClassicUO.Renderer.WorldEnv.ILeafFallService"/>.
     /// </summary>
     [Obsolete("Use ILeafFallService via Renderer3DServices. Will be removed in ADR-012 Phase 3.")]
     internal static class LeafFallSystem
     {
-        private static ClassicUO.Renderer.World.ILeafFallService Service
+        private static ClassicUO.Renderer.WorldEnv.ILeafFallService Service
             => Renderer3DHost.Services.LeafFall;
 
         public static bool Enabled
@@ -63,6 +63,6 @@ namespace ClassicUO.Renderer.Renderer3D
 
         /// <summary>Pure-math helper preserved for any external caller (none currently known).</summary>
         public static float SpawnRateAt(float y)
-            => ClassicUO.Renderer.World.LeafFallService.SpawnRateAt(y);
+            => ClassicUO.Renderer.WorldEnv.LeafFallService.SpawnRateAt(y);
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // ClassicUO — Environment domain (ADR-012 Phase 4 pilot).
 
-namespace ClassicUO.Renderer.Environment
+namespace ClassicUO.Renderer.EnvRender
 {
     /// <summary>
     /// One row of the weather → ground overlay mapping table. <see cref="Mode"/> is the

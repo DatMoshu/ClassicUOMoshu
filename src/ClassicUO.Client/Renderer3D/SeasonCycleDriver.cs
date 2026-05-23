@@ -18,12 +18,12 @@ using ClassicUO.Renderer.Core;
 namespace ClassicUO.Renderer.Renderer3D
 {
     /// <summary>
-    /// Backwards-compatible facade over <see cref="ClassicUO.Renderer.World.ISeasonService"/>.
+    /// Backwards-compatible facade over <see cref="ClassicUO.Renderer.WorldEnv.ISeasonService"/>.
     /// </summary>
     [Obsolete("Use ISeasonService via Renderer3DServices. Will be removed in ADR-012 Phase 3.")]
     internal static class SeasonCycleDriver
     {
-        private static ClassicUO.Renderer.World.ISeasonService Service => Renderer3DHost.Services.Season;
+        private static ClassicUO.Renderer.WorldEnv.ISeasonService Service => Renderer3DHost.Services.Season;
 
         public static bool Enabled
         {

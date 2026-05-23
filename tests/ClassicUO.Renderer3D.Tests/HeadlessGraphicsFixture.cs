@@ -61,7 +61,7 @@ namespace ClassicUO.Renderer3D.Tests
             try { _game.Dispose(); } catch { /* best effort */ }
         }
 
-        private sealed class HeadlessGame : Game
+        private sealed class HeadlessGame : Microsoft.Xna.Framework.Game
         {
             public HeadlessGame()
             {

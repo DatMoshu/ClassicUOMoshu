@@ -19,6 +19,7 @@ using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
 using SDL3;
+using World = ClassicUO.Game.World;
 
 namespace ClassicUO.Renderer.Renderer3D
 {

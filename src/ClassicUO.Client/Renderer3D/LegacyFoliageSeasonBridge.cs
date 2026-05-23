@@ -3,7 +3,7 @@
 // Bridges the legacy World3DRenderer foliage-season state to IFoliageSeasonBridge.
 // Replaced when the foliage shader pass migrates into a renderer service.
 
-using ClassicUO.Renderer.Environment;
+using ClassicUO.Renderer.EnvRender;
 
 namespace ClassicUO.Renderer.Renderer3D
 {
