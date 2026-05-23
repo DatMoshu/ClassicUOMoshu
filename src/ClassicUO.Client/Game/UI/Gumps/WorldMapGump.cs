@@ -922,7 +922,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 try
                 {
-                    stream.Read(buffer, 0, buffer.Length);
+                    stream.ReadExactly(buffer, 0, buffer.Length);
 
                     StackDataReader reader = new StackDataReader(buffer.AsSpan(0, (int)stream.Length));
 

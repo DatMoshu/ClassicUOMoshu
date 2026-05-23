@@ -4,9 +4,14 @@ using System.IO;
 using System.Linq;
 using ClassicUO.SpeechRecognition;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ClassicUO.Game
 {
+    // AOT-safe serializer context for speechcommands.json deserialization.
+    [JsonSerializable(typeof(List<SpeechCommandInfo>))]
+    internal sealed partial class SpeechCommandsJsonContext : JsonSerializerContext { }
+
     internal sealed class SpeechCommandsManager
     {
         private const string SpeechCommandsFile = "speechcommands.json";
@@ -23,7 +28,9 @@ namespace ClassicUO.Game
 
         public void LoadSpeechCommands(string commandsJson)
         {
-            _speechCommands = JsonSerializer.Deserialize<List<SpeechCommandInfo>>(commandsJson) ?? new List<SpeechCommandInfo>();
+            _speechCommands = JsonSerializer.Deserialize(
+                commandsJson, SpeechCommandsJsonContext.Default.ListSpeechCommandInfo)
+                ?? new List<SpeechCommandInfo>();
         }
 
         public bool FindSpeechCommand(string command)

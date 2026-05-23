@@ -1,0 +1,18 @@
+{
+  "_comment": "Default tree-season parameters for TreeSeasonService. Mirrors TreeSeasonServiceConfig.Default verbatim. InitialSeason must match a TreeSeasonKind enum name (Spring|Summer|Autumn|Winter). Season boundaries differ from SeasonService's by design — see TreeSeasonServiceConfig remarks.",
+
+  "SpringSummerBoundary": 0.25,
+  "SummerAutumnBoundary": 0.50,
+  "AutumnWinterBoundary": 0.75,
+  "SnowRiseStart": 0.78,
+  "SnowRiseEnd": 0.95,
+  "SnowFallEnd": 1.10,
+  "SnowFadeStart": -0.05,
+  "SnowFadeEnd": 0.10,
+  "InitialEnabled": false,
+  "InitialYearProgress": 0.25,
+  "InitialSeason": "Summer",
+  "InitialSnowLineFrac": 0.4,
+  "FallColorSharpness": 1.0,
+  "InitialAutoFromYear": true
+}

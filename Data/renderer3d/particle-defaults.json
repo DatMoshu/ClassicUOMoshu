@@ -1,0 +1,6 @@
+{
+  "_comment": "Default particle-system toggles. Mirrors ParticleServiceConfig.Default verbatim.",
+
+  "InitialEnabled": true,
+  "InitialVerboseLog": false
+}

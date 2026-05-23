@@ -71,6 +71,16 @@ namespace ClassicUO.Game.GameObjects
                 graphic = Constants.TREE_REPLACE_GRAPHIC;
             }
 
+            // Per-tile exposed-to-sky lookup for snow/wet gating in
+            // DrawStaticAnimated → TreeTextureCache.Get.
+            bool exposed = true;
+            try
+            {
+                var chunk = World?.Map?.GetChunk(X >> 3, Y >> 3);
+                if (chunk != null) exposed = chunk.IsTileExposedToSky(X & 7, Y & 7);
+            }
+            catch { /* fall back to exposed */ }
+
             DrawStaticAnimated(
                 batcher,
                 graphic,
@@ -81,7 +91,8 @@ namespace ClassicUO.Game.GameObjects
                     && ProfileManager.CurrentProfile.ShadowsStatics
                     && (isTree || ItemData.IsFoliage || StaticFilters.IsRock(graphic)),
                 depth,
-                ProfileManager.CurrentProfile.AnimatedWaterEffect && ItemData.IsWet
+                ProfileManager.CurrentProfile.AnimatedWaterEffect && ItemData.IsWet,
+                exposed
             );
 
             if (ItemData.IsLight && !InChunkMesh)

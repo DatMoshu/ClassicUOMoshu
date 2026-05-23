@@ -89,9 +89,27 @@ namespace ClassicUO.Configuration
 
         [JsonPropertyName("encryption")] public byte Encryption { get; set; }
 
-        [JsonPropertyName("plugins")] public string[] Plugins { get; set; } = { @"./Assistant/Razor.dll" };
+        [JsonPropertyName("plugins")] public string[] Plugins { get; set; } = Array.Empty<string>();
         
         [JsonPropertyName("files_override")] public string OverrideFile { get; set; }
+
+        // ── Vivox proximity voice settings ───────────────────────────────────
+        // Credentials are intended to be served by the game server on login
+        // (0xBF/0x0107 VoiceLoginToken). Until that ships, they are still
+        // sourced from settings.json so they no longer live as string constants
+        // baked into the NativeAOT binary.
+        [JsonPropertyName("vivox_issuer")]  public string VivoxIssuer  { get; set; } = "";
+        [JsonPropertyName("vivox_secret")]  public string VivoxSecret  { get; set; } = "";
+        [JsonPropertyName("vivox_domain")]  public string VivoxDomain  { get; set; } = "";
+        [JsonPropertyName("vivox_server")]  public string VivoxServer  { get; set; } = "";
+        /// <summary>
+        /// Development-only: auto-join hardcoded faction/guild test channels at
+        /// login so PTT routing can be exercised without the server emitting a
+        /// real 0xBF/0x0101 ChannelInfo packet. Must default false in release.
+        /// </summary>
+        [JsonPropertyName("vivox_dev_auto_join")]      public bool   VivoxDevAutoJoin      { get; set; } = false;
+        [JsonPropertyName("vivox_dev_faction_channel")] public string VivoxDevFactionChannel { get; set; } = "uoww-test-faction";
+        [JsonPropertyName("vivox_dev_guild_channel")]   public string VivoxDevGuildChannel   { get; set; } = "uoww-test-guild";
 
         // ── Voice / STT settings ────────────────────────────────────────────
         [JsonPropertyName("enable_speech_recognition")] public bool SpeechRecognitionEnabled { get; set; } = true;

@@ -60,6 +60,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         // sounds
         private Checkbox _enableSounds, _enableMusic, _footStepsSound, _combatMusic, _musicInBackground, _loginMusic;
+        private Checkbox _narratorEnabled;
 
         // voice (moved out of sound — see BuildVoice)
         private Checkbox _enableSpeechRecognition, _enableProximityChat;
@@ -147,6 +148,7 @@ namespace ClassicUO.Game.UI.Gumps
         private HSliderBar _sliderScreenZoom;
         private HSliderBar _sliderZoom;
         private HSliderBar _soundsVolume, _musicVolume, _loginMusicVolume;
+        private HSliderBar _npcVoiceVolume, _npcVoiceFrequency, _npcVoiceMinPerNpc, _npcVoiceMinGlobal, _npcVoiceHistoryLength, _narratorVolume;
         private ClickableColorBox _speechColorPickerBox, _emoteColorPickerBox, _yellColorPickerBox, _whisperColorPickerBox, _partyMessageColorPickerBox, _guildMessageColorPickerBox, _allyMessageColorPickerBox, _chatMessageColorPickerBox, _partyAuraColorPickerBox;
         private InputField _spellFormatBox;
         private ClickableColorBox _tooltip_font_hue;
@@ -383,6 +385,19 @@ namespace ClassicUO.Game.UI.Gumps
                     10 + 30 * i++,
                     140,
                     25,
+                    ButtonAction.SwitchPage,
+                    "NPC Voices"
+                ) { ButtonParameter = 15 }
+            );
+
+            Add
+            (
+                new NiceButton
+                (
+                    10,
+                    10 + 30 * i++,
+                    140,
+                    25,
                     ButtonAction.Activate,
                     ResGumps.IgnoreListManager
                 )
@@ -457,6 +472,7 @@ namespace ClassicUO.Game.UI.Gumps
             BuildGeneral();
             BuildSounds();
             BuildVoice();
+            BuildNpcVoices();
             BuildVideo();
             BuildCommands();
             BuildFonts();
@@ -1614,42 +1630,84 @@ namespace ClassicUO.Game.UI.Gumps
             int startX = 5;
             int startY = 5;
 
-            // ── Feature toggles ─────────────────────────────────────────────
+            // ═══ DEFAULT TIER ═══════════════════════════════════════════════
             AddLabel(rightArea, "--- Voice & Speech ---", startX, startY);
             startY += 20;
 
-            _enableSpeechRecognition = AddCheckBox
-            (
-                rightArea,
-                "Enable Speech Recognition",
+            // Surface Vivox availability so the toggles aren't deceptive when
+            // the SDK can't initialize (missing creds, missing dll, etc.). The
+            // VivoxManager is the source of truth — Initialize() runs at boot.
+            var vivox = World?.VivoxManager;
+            if (vivox != null && !vivox.IsInitialized)
+            {
+                AddLabel(rightArea,
+                    "Voice unavailable — Vivox is not configured on this shard.",
+                    startX, startY);
+                startY += 18;
+                AddLabel(rightArea,
+                    "    Ask the operator to set vivox_issuer / vivox_domain / vivox_server,",
+                    startX, startY);
+                startY += 16;
+                AddLabel(rightArea,
+                    "    or to enable server-issued JWTs (UOWW_VIVOX_* env vars).",
+                    startX, startY);
+                startY += 22;
+            }
+
+            _enableSpeechRecognition = AddCheckBox(
+                rightArea, "Speech Commands",
                 _currentProfile.EnableSpeechRecognition,
-                startX,
-                startY
-            );
+                startX, startY);
+
+            NiceButton speechConfigureBtn = new NiceButton(
+                startX + 240, startY, 110, 20,
+                ButtonAction.Activate, "Configure…")
+            {
+                ButtonParameter = (int)Buttons.OpenSpeechSettings,
+                IsSelectable = false
+            };
+            rightArea.Add(speechConfigureBtn);
             startY += _enableSpeechRecognition.Height + 2;
 
-            _enableProximityChat = AddCheckBox
-            (
-                rightArea,
-                "Enable Proximity Chat",
+            AddLabel(rightArea, "    Hold the speech PTT key to speak a command (default: CapsLock).",
+                startX, startY);
+            startY += 18;
+
+            _enableProximityChat = AddCheckBox(
+                rightArea, "Proximity Voice Chat",
                 _currentProfile.EnableProximityChat,
-                startX,
-                startY
-            );
+                startX, startY);
+
+            NiceButton voiceConfigureBtn = new NiceButton(
+                startX + 240, startY, 110, 20,
+                ButtonAction.Activate, "Configure…")
+            {
+                ButtonParameter = (int)Buttons.OpenVoiceBindings,
+                IsSelectable = false
+            };
+            rightArea.Add(voiceConfigureBtn);
             startY += _enableProximityChat.Height + 2;
 
-            _proximityAlwaysOn = AddCheckBox
-            (
+            AddLabel(rightArea, "    Hold the proximity PTT key to talk to nearby players (default: V).",
+                startX, startY);
+            startY += 16;
+            AddLabel(rightArea, "    Press the mic-mute key to hard-mute (default: F8).",
+                startX, startY);
+            startY += 22;
+
+            // ═══ ADVANCED TIER ══════════════════════════════════════════════
+            AddLabel(rightArea, "── Advanced ──────────────────────────────",
+                startX, startY);
+            startY += 20;
+
+            _proximityAlwaysOn = AddCheckBox(
                 rightArea,
-                "Proximity: Always On (Open Mic) — otherwise Push-to-Talk",
+                "Proximity: Always-On (open mic) — overrides PTT",
                 _currentProfile.ProximityAlwaysOn,
-                startX,
-                startY
-            );
+                startX, startY);
             startY += _proximityAlwaysOn.Height + 8;
 
-            // ── Voice chat PTT bindings ─────────────────────────────────────
-            AddLabel(rightArea, "--- Voice Chat Hotkeys ---", startX, startY);
+            AddLabel(rightArea, "Voice Chat Hotkeys", startX, startY);
             startY += 20;
 
             _voicePttProximityKeyBox = AddVoiceHotkey(
@@ -1670,18 +1728,14 @@ namespace ClassicUO.Game.UI.Gumps
 
             startY += 6;
 
-            // ── Speech command activation mode ─────────────────────────────
-            AddLabel(rightArea, "--- Speech Commands ---", startX, startY);
+            AddLabel(rightArea, "Speech Commands", startX, startY);
             startY += 20;
 
-            _speechCmdPttCheckbox = AddCheckBox
-            (
+            _speechCmdPttCheckbox = AddCheckBox(
                 rightArea,
-                "Speech Commands: Push to Talk",
+                "Speech Commands: Push to Talk (recommended)",
                 _currentProfile.SpeechCmdMode == 1,
-                startX,
-                startY
-            );
+                startX, startY);
             startY += _speechCmdPttCheckbox.Height + 2;
 
             AddLabel(rightArea, "PTT Key:", startX + 10, startY);
@@ -1699,7 +1753,6 @@ namespace ClassicUO.Game.UI.Gumps
             rightArea.Add(_speechCmdPttKeyBox);
             startY += 30;
 
-            // ── Open Speech Settings gump ───────────────────────────────────
             startY += 6;
             NiceButton openSpeechBtn = new NiceButton(
                 startX, startY, 200, 25,
@@ -1711,6 +1764,68 @@ namespace ClassicUO.Game.UI.Gumps
             };
             rightArea.Add(openSpeechBtn);
             startY += 30;
+
+            Add(rightArea, PAGE);
+        }
+
+        private void BuildNpcVoices()
+        {
+            const int PAGE = 15;
+
+            ScrollArea rightArea = new ScrollArea(190, 20, WIDTH - 210, 420, true);
+
+            int startX = 5;
+            int startY = 5;
+            const int SLIDER_WIDTH = 200;
+            const int LABEL_W = 200;
+
+            AddLabel(rightArea, "NPC voice line settings — all client-side.", startX, startY);
+            startY += 18;
+            AddLabel(rightArea, "Server still sends every line; the client gates playback locally.", startX, startY);
+            startY += 22;
+
+            // ── Master volume ────────────────────────────────────────────
+            AddLabel(rightArea, "NPC voice volume", startX, startY);
+            _npcVoiceVolume = AddHSlider(rightArea, 0, 100,
+                _currentProfile.NpcVoiceVolume, startX + LABEL_W, startY, SLIDER_WIDTH);
+            startY += _npcVoiceVolume.Height + 6;
+
+            // ── Frequency ───────────────────────────────────────────────
+            AddLabel(rightArea, "Frequency (% of lines played)", startX, startY);
+            _npcVoiceFrequency = AddHSlider(rightArea, 0, 100,
+                _currentProfile.NpcVoiceFrequency, startX + LABEL_W, startY, SLIDER_WIDTH);
+            startY += _npcVoiceFrequency.Height + 6;
+
+            // ── Per-NPC cooldown ────────────────────────────────────────
+            AddLabel(rightArea, "Min seconds between lines per NPC", startX, startY);
+            _npcVoiceMinPerNpc = AddHSlider(rightArea, 1, 300,
+                _currentProfile.NpcVoiceMinSecPerNpc, startX + LABEL_W, startY, SLIDER_WIDTH);
+            startY += _npcVoiceMinPerNpc.Height + 6;
+
+            // ── Global anti-spam ────────────────────────────────────────
+            AddLabel(rightArea, "Global anti-spam (sec between any lines)", startX, startY);
+            _npcVoiceMinGlobal = AddHSlider(rightArea, 0, 60,
+                _currentProfile.NpcVoiceMinSecGlobal, startX + LABEL_W, startY, SLIDER_WIDTH);
+            startY += _npcVoiceMinGlobal.Height + 6;
+
+            // ── Replay history length ───────────────────────────────────
+            AddLabel(rightArea, "Replay history length (-rv buffer)", startX, startY);
+            _npcVoiceHistoryLength = AddHSlider(rightArea, 5, 50,
+                _currentProfile.NpcVoiceHistoryLength, startX + LABEL_W, startY, SLIDER_WIDTH);
+            startY += _npcVoiceHistoryLength.Height + 12;
+
+            // ── Narrator section ────────────────────────────────────────
+            AddLabel(rightArea, "Narrator (welcome / -rv intros)", startX, startY);
+            startY += 18;
+
+            _narratorEnabled = AddCheckBox(rightArea, "Enable narrator",
+                _currentProfile.NarratorEnabled, startX, startY);
+            startY += _narratorEnabled.Height + 4;
+
+            AddLabel(rightArea, "Narrator volume", startX, startY);
+            _narratorVolume = AddHSlider(rightArea, 0, 100,
+                _currentProfile.NarratorVolume, startX + LABEL_W, startY, SLIDER_WIDTH);
+            startY += _narratorVolume.Height + 6;
 
             Add(rightArea, PAGE);
         }
@@ -3778,6 +3893,11 @@ namespace ClassicUO.Game.UI.Gumps
                     UIManager.GetGump<ClassicUO.SpeechRecognition.Gumps.SpeechSettingsGump>()?.Dispose();
                     UIManager.Add(new ClassicUO.SpeechRecognition.Gumps.SpeechSettingsGump(World));
                     break;
+
+                case Buttons.OpenVoiceBindings:
+                    UIManager.GetGump<ClassicUO.SpeechRecognition.Gumps.VoiceBindingsGump>()?.Dispose();
+                    UIManager.Add(new ClassicUO.SpeechRecognition.Gumps.VoiceBindingsGump(World));
+                    break;
             }
         }
 
@@ -3873,16 +3993,18 @@ namespace ClassicUO.Game.UI.Gumps
                     _musicVolume.IsVisible = _enableMusic.IsChecked;
                     break;
 
-                case 14: // voice
+                case 14: // voice — PTT-by-default per Phase 0 plan
                     _enableSpeechRecognition.IsChecked = true;
                     _enableProximityChat.IsChecked    = true;
                     _proximityAlwaysOn.IsChecked      = false;
-                    _voicePttProximityKeyBox?.SetKey((SDL.SDL_Keycode)0x4000003E, SDL.SDL_Keymod.SDL_KMOD_NONE); // F5
+                    // Proximity PTT default: V (SDLK_v = 0x76)
+                    _voicePttProximityKeyBox?.SetKey((SDL.SDL_Keycode)0x76, SDL.SDL_Keymod.SDL_KMOD_NONE);
                     _voicePttFactionKeyBox?.SetKey((SDL.SDL_Keycode)0x4000003F, SDL.SDL_Keymod.SDL_KMOD_NONE);   // F6
                     _voicePttGuildKeyBox?.SetKey((SDL.SDL_Keycode)0x40000040, SDL.SDL_Keymod.SDL_KMOD_NONE);     // F7
                     _voiceMicMuteKeyBox?.SetKey((SDL.SDL_Keycode)0x40000041, SDL.SDL_Keymod.SDL_KMOD_NONE);      // F8
-                    if (_speechCmdPttCheckbox != null) _speechCmdPttCheckbox.IsChecked = false;
-                    _speechCmdPttKeyBox?.SetKey(SDL.SDL_Keycode.SDLK_UNKNOWN, SDL.SDL_Keymod.SDL_KMOD_NONE);
+                    // Speech PTT default: ON, key = CapsLock (SDLK_CAPSLOCK = 0x40000039)
+                    if (_speechCmdPttCheckbox != null) _speechCmdPttCheckbox.IsChecked = true;
+                    _speechCmdPttKeyBox?.SetKey((SDL.SDL_Keycode)0x40000039, SDL.SDL_Keymod.SDL_KMOD_NONE);
                     break;
 
                 case 3: // video
@@ -4163,6 +4285,16 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 Client.Game.Audio.StopMusic();
             }
+
+            // NPC voices + narrator. Pure client-side gates — no packet to server.
+            _currentProfile.NpcVoiceVolume        = _npcVoiceVolume.Value;
+            _currentProfile.NpcVoiceFrequency     = _npcVoiceFrequency.Value;
+            _currentProfile.NpcVoiceMinSecPerNpc  = _npcVoiceMinPerNpc.Value;
+            _currentProfile.NpcVoiceMinSecGlobal  = _npcVoiceMinGlobal.Value;
+            _currentProfile.NpcVoiceHistoryLength = _npcVoiceHistoryLength.Value;
+            _currentProfile.NarratorEnabled       = _narratorEnabled.IsChecked;
+            _currentProfile.NarratorVolume        = _narratorVolume.Value;
+            ClassicUO.Game.Managers.NpcVoiceManager.Instance.ApplyProfileSettings(_currentProfile);
 
             _currentProfile.EnableSpeechRecognition = _enableSpeechRecognition.IsChecked;
             Settings.GlobalSettings.SpeechRecognitionEnabled = _enableSpeechRecognition.IsChecked;
@@ -4896,8 +5028,9 @@ namespace ClassicUO.Game.UI.Gumps
             ImportProfileCode,
             CopyShareCode,
             OpenSpeechSettings,
+            OpenVoiceBindings,
 
-            Last = OpenSpeechSettings
+            Last = OpenVoiceBindings
         }
 
 

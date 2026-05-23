@@ -69,6 +69,19 @@ namespace ClassicUO.Configuration
         public bool EnableCombatMusic { get; set; } = true;
         public bool ReproduceSoundsInBackground { get; set; }
 
+        // NPC voice lines (Qwen-synthesised persona dialogue). Pure client-side
+        // gating — server keeps sending packets regardless, the client decides
+        // whether to play. History is recorded even when a line is gated, so
+        // -rv can replay anything that arrived. Tunables surfaced in the
+        // Options gump under "NPC Voices".
+        public int NpcVoiceVolume { get; set; } = 80;          // 0..100
+        public int NpcVoiceFrequency { get; set; } = 100;      // 0..100 (% of incoming lines actually played)
+        public int NpcVoiceMinSecPerNpc { get; set; } = 60;    // anti-repeat per NPC
+        public int NpcVoiceMinSecGlobal { get; set; } = 3;     // anti-spam across all NPCs
+        public int NpcVoiceHistoryLength { get; set; } = 20;   // ring buffer for -rv
+        public bool NarratorEnabled { get; set; } = true;      // first-login welcome + -rv intros
+        public int NarratorVolume { get; set; } = 90;          // 0..100, separate bus from NpcVoiceVolume
+
         // voice & speech
         public bool EnableSpeechRecognition { get; set; } = true;
         public bool EnableProximityChat { get; set; } = true;
@@ -90,6 +103,26 @@ namespace ClassicUO.Configuration
         // Faction/guild are ALWAYS PTT regardless — they are broadcast
         // channels and accidental open-mic leakage is never desirable.
         public bool ProximityAlwaysOn { get; set; } = false;
+
+        // 3DCUO render mode (0 = Classic2D, 1 = Iso3D, 2 = Full3D). Default
+        // Classic2D so fresh profiles match vanilla UO. Toggled with F3 in-game.
+        public int  RenderMode3D            { get; set; } = 0;
+        // Sub-toggle for Classic2D mode: render the player as a 3D mobile
+        // (RT-blit) on top of the 2D world. No effect outside Classic2D.
+        public bool Use3DPlayerInClassic2D  { get; set; } = false;
+        // Hide multi components above the player's _maxZ (classic UO
+        // transparent-roof behaviour) in Iso3D / Full3D modes.
+        public bool HideMultisAbovePlayerZ  { get; set; } = true;
+
+        // 3DCUO realtime lighting (Phase 1 — sun direction only). See
+        // design/gdd/realtime-lighting-3d.md and design/gdd/day-night-cycle.md.
+        // OFF by default so fresh profiles match current visuals.
+        public bool  RealtimeLightingEnabled { get; set; } = false;
+        public bool  SunCycleAuto            { get; set; } = true;
+        public float SunTimeOfDay            { get; set; } = 12.0f;   // [0, 24)
+        // Real-time seconds per full in-world day. Prototype default is fast
+        // (120 s) for visual debugging; the GDD's production target is 7200 s.
+        public float SunCyclePeriodSeconds   { get; set; } = 120.0f;
 
         // fonts and speech
         public byte ChatFont { get; set; } = 1;

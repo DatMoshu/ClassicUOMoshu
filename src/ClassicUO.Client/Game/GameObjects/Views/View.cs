@@ -249,7 +249,8 @@ namespace ClassicUO.Game.GameObjects
             Vector3 hue,
             bool shadow,
             float depth,
-            bool isWet = false
+            bool isWet = false,
+            bool tileExposedToSky = true
         )
         {
             ref UOFileIndex index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + 0x4000);
@@ -280,18 +281,35 @@ namespace ClassicUO.Game.GameObjects
 
                 Vector2 pos = new Vector2(x, y);
 
+                // Seasonal recolor for tree-leaf statics: substitute the
+                // runtime-recolored Texture2D in place of the atlas region.
+                // Applies to both 2D and 3D rendering paths (3D side does this
+                // in Static3DRenderer.ResolveDrawTexture).
+                Microsoft.Xna.Framework.Graphics.Texture2D drawTex = artInfo.Texture;
+                Microsoft.Xna.Framework.Rectangle drawUV = artInfo.UV;
+                if (ClassicUO.Game.Data.StaticFilters.IsTreeLeaf(graphic))
+                {
+                    var recolored = ClassicUO.Renderer.Renderer3D.TreeTextureCache.Get(
+                        graphic, applySnow: tileExposedToSky);
+                    if (recolored != null)
+                    {
+                        drawTex = recolored;
+                        drawUV = new Microsoft.Xna.Framework.Rectangle(0, 0, recolored.Width, recolored.Height);
+                    }
+                }
+
                 if (shadow)
                 {
-                    batcher.DrawShadow(artInfo.Texture, pos, artInfo.UV, false, depth + 0.25f);
+                    batcher.DrawShadow(drawTex, pos, drawUV, false, depth + 0.25f);
                 }
 
                 var scale = new Vector2(scaleFactor);
                 if (isWet)
                 {
                     batcher.Draw(
-                        artInfo.Texture,
+                        drawTex,
                         pos,
-                        artInfo.UV,
+                        drawUV,
                         hue,
                         0f,
                         Vector2.Zero,
@@ -306,9 +324,9 @@ namespace ClassicUO.Game.GameObjects
                 }
 
                 batcher.Draw(
-                    artInfo.Texture,
+                    drawTex,
                     pos,
-                    artInfo.UV,
+                    drawUV,
                     hue,
                     0f,
                     Vector2.Zero,

@@ -67,6 +67,21 @@ namespace ClassicUO.Game.Scenes
         {
             base.Load();
 
+            // Gump snapshot harness — bypass the login UI and snapshot the
+            // requested client-built gump to PNG, then exit. See
+            // ClassicUO/Tools/GumpSnapshot/.
+            ClassicUO.Utility.Logging.Log.Trace(
+                $"[gump-snapshot] LoginScene.Load reached. factory='{CUOEnviroment.GumpSnapshotFactory ?? "<null>"}' bin='{CUOEnviroment.GumpSnapshotBinPath ?? "<null>"}'");
+            if (!string.IsNullOrWhiteSpace(CUOEnviroment.GumpSnapshotFactory)
+             || !string.IsNullOrWhiteSpace(CUOEnviroment.GumpSnapshotBinPath))
+            {
+                ClassicUO.Utility.Logging.Log.Trace("[gump-snapshot] hook firing, calling RunOnce");
+                Tools.GumpSnapshot.GumpSnapshotController.RunOnce();
+                ClassicUO.Utility.Logging.Log.Trace("[gump-snapshot] RunOnce returned, calling Game.Exit");
+                Client.Game.Exit();
+                return;
+            }
+
             Client.Game.Window.AllowUserResizing = false;
 
             _autoLogin = Settings.GlobalSettings.AutoLogin;

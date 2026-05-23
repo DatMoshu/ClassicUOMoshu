@@ -1,0 +1,7 @@
+{
+  "_comment": "Default mouse-pick service constants. Mirrors MousePickServiceConfig.Default verbatim. TileSize and ZScale must match LandMesh3D.TILE / Z_SCALE constants.",
+
+  "TileSize": 22.0,
+  "ZScale": 4.0,
+  "ParallelEpsilon": 1e-05
+}

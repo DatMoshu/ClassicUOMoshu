@@ -1,0 +1,9 @@
+{
+  "_comment": "Default mobile-anim driver tunables. Mirrors MobileAnimServiceConfig.Default verbatim.",
+
+  "StaleEntrySeconds": 120.0,
+  "MaxTrackedEntries": 256,
+  "EvictionFrameInterval": 60,
+  "WalkingMotionThresholdSeconds": 0.5,
+  "MotionDeltaSqEpsilon": 0.001
+}

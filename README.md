@@ -1,79 +1,69 @@
-<p align="center">
-    <img src="https://i.imgur.com/CgpwyIQ.png" width="190" height="200" >
-</p>
+# ClassicUO — UOWW 3D Renderer
 
-An open source implementation of the Ultima Online Classic Client.
+**Status:** Production — Active Development. Architecture per [ADR-012](../../design/Core/Architecture/decisions/ADR-012-renderer3d-architecture.md).
 
-Individuals/hobbyists: support continued maintenance and development via the monthly Patreon:
-<br>&nbsp;&nbsp;[![Patreon](https://raw.githubusercontent.com/wiki/ocornut/imgui/web/patreon_02.png)](http://www.patreon.com/classicuo)
+Sibling fork of `client/ClassicUO/` that renders the UO world in real 3D using a render-pass + service container architecture. Will be merged back into `client/ClassicUO/` once the migration phases in ADR-012 complete.
 
-Individuals/hobbyists: support continued maintenance and development via PayPal:
-<br>&nbsp;&nbsp;[![PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=9ZWJBY6MS99D8)
+> **Note:** This directory was promoted from `prototypes/3DCUO/` on 2026-05-07. The hypothesis is validated; the focus is now production-grade refactor and feature completion. Prototype rules (`.claude/rules/prototype-code.md`) **do not apply** here — this is production code held to the highest engineering standards (see ADR-012 §4).
 
-<a href="https://discord.gg/VdyCpjQ">
-<img src="https://img.shields.io/discord/458277173208547350.svg?logo=discord"
-alt="chat on Discord"></a>
+## Approach: Pragmatic Hybrid
 
-[![GitHub Actions Status](https://github.com/ClassicUO/ClassicUO/workflows/Build-Test/badge.svg)](https://github.com/ClassicUO/ClassicUO/actions)
-[![GitHub Actions Status](https://github.com/ClassicUO/ClassicUO/workflows/Deploy/badge.svg)](https://github.com/ClassicUO/ClassicUO/actions)
+- Real 3D camera at iso angle (30° pitch / 45° yaw) — falls through to FPV / 3PV / FreeFly camera modes
+- Real 3D heightmap terrain from `LandTile.YOffsets`
+- Real 3D skinned-mesh players (glTF, custom HLSL bone-palette texture, 1024-bone limit)
+- Statics as depth-aware billboards by default; 3D meshes for curated kinds (trees, walls, roofs)
+- `RenderModeController` exposes one switch (Default2D / MobilesIn3D / Full3D) for incremental rollout
 
-# Introduction
-ClassicUO is an open source implementation of the Ultima Online Classic Client. This client is intended to emulate all standard client versions and is primarily tested against Ultima Online free shards.
+## How to Build
 
-The client is currently under heavy development but is functional. The code is based on the [FNA-XNA](https://fna-xna.github.io/) framework. C# is chosen because there is a large community of developers working on Ultima Online server emulators in C#, because FNA-XNA exists and seems reasonably suitable for creating this type of game.
+Standard build instructions:
 
-![screenshot_2020-07-06_12-29-02](https://user-images.githubusercontent.com/20810422/208747312-04f6782f-3dc8-4951-b0a0-73d2305bbfca.png)
-
-
-ClassicUO is natively cross platform and supports:
-* Browser [Chrome]
-* Windows [DirectX 11, OpenGL, Vulkan]
-* Linux   [OpenGL, Vulkan]
-* macOS   [Metal, OpenGL, MoltenVK]
-
-# Download & Play!
-| Platform | Link |
-| --- | --- |
-| Browser | [Play!](https://play.classicuo.org) |
-| Windows x64 | [Download](https://www.classicuo.eu/launcher/win-x64/ClassicUOLauncher-win-x64-release.zip) |
-| Linux x64 | [Download](https://www.classicuo.eu/launcher/linux-x64/ClassicUOLauncher-linux-x64-release.zip) |
-| macOS x64 | [Download](https://www.classicuo.eu/launcher/osx/ClassicUOLauncher-osx-x64-release.zip) |
-
-Or visit the [ClassicUO Website](https://www.classicuo.eu/)
-
-# How to generate a release build
+```bash
+cd client/ClassicUO
+dotnet build ClassicUO.sln -c Debug
 ```
-git clone --recursive https://github.com/ClassicUO/ClassicUO.git
-cd ClassicUO/scripts
-bash build-naot.sh
-```
-Binaries available in `bin/dist` folder
-> [!WARNING] 
-> To execute .sh scripts on Windows, use Git Bash which can be installed with Git itself: https://git-scm.com/download/win
 
-# Contribute
-Everyone is welcome to contribute! The GitHub issues and project tracker are kept up to date with tasks that need work.
+A working UO classic data install is required (same as upstream ClassicUO). Build artifacts go to `C:\Users\kaise\OneDrive\build` (Shadow PC sync), not the repo's `bin/`.
 
-# Legal
-The code itself has been written using the following projects as a reference:
+## Architecture
 
-* [OrionUO](https://github.com/hotride/orionuo)
-* [Razor](https://github.com/msturgill/razor)
-* [UltimaXNA](https://github.com/ZaneDubya/UltimaXNA)
-* [ServUO](https://github.com/servuo/servuo)
+See [ADR-012](../../design/Core/Architecture/decisions/ADR-012-renderer3d-architecture.md) for the full architectural decision record. Summary:
 
-Backend:
-* [FNA](https://github.com/FNA-XNA/FNA)
+- **Render-pass pipeline** — `Sky → Terrain → GroundOverlay → StaticGeometry → Mobile → Atmosphere → Overlay`
+- **Service container** — every subsystem accessed via interface, never via static fields
+- **Frame clock** — single authoritative `dt` source; no subsystem reads `Environment.TickCount64` or `DateTime.UtcNow`
+- **Event bus** — typed events for cross-system communication (e.g., `WeatherChangedEvent`)
+- **Data-driven** — cross-system coupling lives in JSON under `Data/renderer3d/`, not in code
 
-This work is released under the BSD 4 license. This project does not distribute any copyrighted game assets. In order to run this client you'll need to legally obtain a copy of the Ultima Online Classic Client.
-Using a custom client to connect to official UO servers is strictly forbidden. We do not assume any responsibility of the usage of this client.
+## Migration Status
 
-Ultima Online(R) © 2024 Electronic Arts Inc. All Rights Reserved.
+ADR-012 defines a six-phase migration from the original prototype shape to the target architecture. Track progress against the migration playbook at [`design/Core/Architecture/renderer3d/migration-playbook.md`](../../design/Core/Architecture/renderer3d/migration-playbook.md).
 
-# Code Signing Policy
-Free code signing provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | ADR + skeleton + 5 critical fixes + WindManager pilot + playbook | ✅ Complete (2026-05-07) |
+| 2 | Mechanical port of ~40 subsystems into services | ✅ Complete (sessions 2–56) |
+| 3 | Render-pass extraction (split `World3DRenderer.Draw()` into 7 passes) | ✅ Complete (sessions 57–64) |
+| 4 | Data-driven config files authored, hardcoded couplings deleted | Pending |
+| 5 | Test suite + performance regression baseline | Pending |
+| 6 | Merge into `client/ClassicUO/`, delete `client/ClassicUO/` | Pending |
 
-This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+ADR-012 was promoted from Proposed → **Accepted** at session 64 (all acceptance criteria met).
 
-People with direct push access:
-* [andreakarasho](https://github.com/andreakarasho)
+## Validated Hypothesis (from prior prototype phase)
+
+The Pragmatic Hybrid approach works. Key results from the prototype phase:
+
+- **RT-mode mobiles (default).** Per-mobile 192² RenderTarget2D, blit through 2D batcher; coexists with legacy world. Sustains 60 FPS on integrated graphics.
+- **Heightmap terrain** from `LandTile.YOffsets` produces correctly-aligned iso ground; UV reuses `Batcher2D.CalculateHalfPixelUVs` for pixel-identical output.
+- **Skinned players via glTF + custom HLSL bone-palette texture** (1024-bone limit vs FNA's 72). Synty equipment attaches per `{Layer,Graphic} → GLB` registry (ADR-006).
+- **Static taxonomy** (`StaticClassifier`) cleanly separates trees / foliage / ground-decals / walls / roofs.
+- **Coordinate convention** TILE=22, Z=4, ART_TO_WORLD=0.5; documented and consistent.
+- **Four camera modes** (iso / FirstPerson / ThirdPerson / FreeFly) implemented.
+
+## Related Documents
+
+- [ADR-012: Renderer3D Architecture](../../design/Core/Architecture/decisions/ADR-012-renderer3d-architecture.md)
+- [ADR-006: 3D Equipment Registry](../../design/Core/Architecture/decisions/ADR-006-3d-equipment-registry.md)
+- [ADR-007: Sidekick Base Mesh Registry](../../design/Core/Architecture/decisions/ADR-007-sidekick-base-mesh-registry.md)
+- Code review (closed by ADR-012 Phase 1): `design/Core/QA/3d-renderer-code-review.md`

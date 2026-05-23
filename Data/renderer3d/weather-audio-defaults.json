@@ -1,0 +1,11 @@
+{
+  "_comment": "Default weather-audio scalar tunables. Audio bank dictionaries (AmbientLoops, ThunderOneShots) currently stay at WeatherAudioServiceConfig.Default — the JSON parser does not yet handle collections (session 69 limitation).",
+
+  "InitialEnabled": true,
+  "InitialAmbientVolume": 0.55,
+  "InitialThunderVolume": 0.85,
+  "CrossfadeSeconds": 1.4,
+  "VerboseLog": false,
+  "RandomSeed": 51966,
+  "ThunderPitchJitter": 0.1
+}

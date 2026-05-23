@@ -1,0 +1,13 @@
+{
+  "_comment": "Default weather parameters for WeatherService. Mirrors WeatherServiceConfig.Default verbatim. InitialType must match a WeatherKind enum name.",
+
+  "InitialType": "None",
+  "InitialIntensity": 0.5,
+  "Radius": 480.0,
+  "Height": 520.0,
+  "InitialAutoLightning": false,
+  "InitialOcclusionCheckEnabled": true,
+  "InitialApplyProfileOnSetType": true,
+  "LightningEveryMin": 4.0,
+  "LightningEveryMax": 9.0
+}

@@ -1,4 +1,4 @@
-﻿using ClassicUO.Utility;
+﻿    using ClassicUO.Utility;
 using System;
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;

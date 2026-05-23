@@ -192,6 +192,11 @@ namespace ClassicUO
             FileManager.Load(Settings.GlobalSettings.UseVerdata, Settings.GlobalSettings.Language, Settings.GlobalSettings.MapsLayouts);
 
             StaticFilters.Load(FileManager.TileData);
+            // TreeStaticRegistry.Load moved to GameScene.Load (after Renderer3DHost is bound).
+            // Iris2StaticRegistry.EnsureLoaded moved to GameScene.Load for the same reason.
+            // WeatherDefaultsStore.Load moved to GameScene.Load (after IWeatherDefaultsService
+            // is registered with the renderer composition root). Loading earlier crashes —
+            // Renderer3DHost is not yet bound at this point in startup.
             BuffTable.Load();
             ChairTable.Load();
 

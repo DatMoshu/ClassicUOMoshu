@@ -237,6 +237,25 @@ namespace ClassicUO.Game.Data
             //Client.Game.UO.FileManager.Arts.CleaUnusedResources(short.MaxValue);
         }
 
+        // tree.txt encodes a per-graphic flag: 1 = leaves/canopy (HATCHED), 0 = trunk (STUMP only).
+        // These helpers expose that distinction so the 3D tree renderer can
+        // treat trunks (one fixed plane) differently from leaves (crossed
+        // planes + seasonal recolor).
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsTreeLeaf(ushort g)
+        {
+            var f = _filteredTiles[g];
+            return (f & STATIC_TILES_FILTER_FLAGS.STFF_STUMP_HATCHED) != 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsTreeTrunk(ushort g)
+        {
+            var f = _filteredTiles[g];
+            return (f & STATIC_TILES_FILTER_FLAGS.STFF_STUMP) != 0
+                && (f & STATIC_TILES_FILTER_FLAGS.STFF_STUMP_HATCHED) == 0;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsTree(ushort g, out int index)
         {

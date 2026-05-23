@@ -1,0 +1,15 @@
+{
+  "_comment": "Default explosion-blast envelope. Mirrors ExplosionServiceConfig.Default verbatim.",
+
+  "InitialEnabled": true,
+  "MaxEvents": 16,
+  "BendAttackSeconds": 0.18,
+  "BendDurationSeconds": 1.6,
+  "BendDecayRate": 2.4,
+  "LeavesHiddenSeconds": 10.0,
+  "BendStrengthPx": 28.0,
+  "CoreFalloffFraction": 0.15,
+  "MinEventRadius": 1.0,
+  "MinEventStrength": 0.01,
+  "ZeroDirectionDistance": 0.5
+}

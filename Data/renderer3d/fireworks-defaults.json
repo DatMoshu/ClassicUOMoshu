@@ -1,0 +1,19 @@
+{
+  "_comment": "Default fireworks-show parameters. Mirrors FireworksServiceConfig.Default verbatim.",
+
+  "InitialEnabled": false,
+  "InitialLoop": true,
+  "InitialClimaxText": "WE DID IT!",
+  "ShowDurationSeconds": 18.0,
+  "ClimaxStartSeconds": 10.0,
+  "ClimaxEndSeconds": 17.0,
+  "ClimaxEmitIntervalSeconds": 0.18,
+  "ClimaxCellSize": 18.0,
+  "ClimaxYOffset": 380.0,
+  "ClimaxZOffset": -260.0,
+  "ClimaxLifetimeSeconds": 0.55,
+  "ClimaxSizeStart": 14.0,
+  "ClimaxSizeEnd": 8.0,
+  "MaxDeltaSeconds": 0.1,
+  "RandomSeed": 61758
+}

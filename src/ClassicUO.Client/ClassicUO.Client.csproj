@@ -25,6 +25,11 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>ClassicUO.UnitTests</_Parameter1>
     </AssemblyAttribute>
+    <!-- ADR-012 Phase 5 (session 71): grants the new ClassicUO.Renderer3D.Tests
+         project access to internal services + storage gateways for unit testing. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>ClassicUO.Renderer3D.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +42,114 @@
     <ProjectReference Include="..\ClassicUO.Renderer\ClassicUO.Renderer.csproj" />
     <ProjectReference Include="..\ClassicUO.Utility\ClassicUO.Utility.csproj" />
   </ItemGroup>
+
+  <!-- 3DCUO PROTOTYPE: glb model loader. Not AOT-clean (uses reflection); fine for proto. -->
+  <ItemGroup>
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.4" />
+    <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.4" />
+  </ItemGroup>
+
+  <!-- Copy Models/** from the UOWW_Assets submodule into build output, preserving subdirs.
+       Source: client/ClassicUO/external/uoww-assets/3D/Models/ (submodule).
+       Dest:   bin/.../Models/ (runtime expects Models/ next to exe). -->
+  <ItemGroup>
+    <ModelFiles Include="$(ProjectDir)..\..\external\uoww-assets\3D\Models\**\*.glb" />
+    <ModelFiles Include="$(ProjectDir)..\..\external\uoww-assets\3D\Models\**\*.gltf" />
+    <ModelFiles Include="$(ProjectDir)..\..\external\uoww-assets\3D\Models\**\*.bin" />
+    <ModelFiles Include="$(ProjectDir)..\..\external\uoww-assets\3D\Models\**\*.png" />
+  </ItemGroup>
+  <Target Name="Copy3DModels" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(ModelFiles)" DestinationFiles="@(ModelFiles->'$(OutputPath)Models\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy compiled shaders to build output. -->
+  <ItemGroup>
+    <ShaderFiles Include="$(ProjectDir)..\ClassicUO.Renderer\shaders\*.fxc" />
+  </ItemGroup>
+  <Target Name="Copy3DShaders" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(ShaderFiles)" DestinationFolder="$(OutputPath)Shaders\" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy ground overlay noise textures to build output. -->
+  <ItemGroup>
+    <GroundOverlayTextures Include="$(ProjectDir)..\ClassicUO.Renderer\textures\ground\*.png" />
+  </ItemGroup>
+  <Target Name="CopyGroundOverlayTextures" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(GroundOverlayTextures)" DestinationFolder="$(OutputPath)Textures\Ground\" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy weather/effect particle textures to build output. -->
+  <ItemGroup>
+    <ParticleTextures Include="$(ProjectDir)..\ClassicUO.Renderer\textures\particles\*.png" />
+  </ItemGroup>
+  <Target Name="CopyParticleTextures" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(ParticleTextures)" DestinationFolder="$(OutputPath)Textures\Particles\" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy Data/3D/** (orientation tables, etc.) to output. -->
+  <ItemGroup>
+    <Data3DFiles Include="$(ProjectDir)..\..\Data\3D\**\*.json" />
+  </ItemGroup>
+  <Target Name="Copy3DData" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(Data3DFiles)" DestinationFiles="@(Data3DFiles->'$(OutputPath)Data\3D\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy prototypes/3DCUO/Data/tree-statics.json to output (TreeStaticRegistry). -->
+  <ItemGroup>
+    <TreeStaticsData Include="$(ProjectDir)..\..\Data\tree-statics.json" />
+  </ItemGroup>
+  <Target Name="CopyTreeStaticsData" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(TreeStaticsData)" DestinationFolder="$(OutputPath)Data\" SkipUnchangedFiles="true" Condition="Exists('@(TreeStaticsData)')" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy repo-root Data\iris2-static-registry.json to output (Iris2StaticRegistry). GLB files stay external; only the lookup JSON is copied. -->
+  <ItemGroup>
+    <Iris2StaticData Include="$(ProjectDir)..\..\..\..\Data\iris2-static-registry.json" />
+  </ItemGroup>
+  <Target Name="CopyIris2StaticData" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(Iris2StaticData)" DestinationFolder="$(OutputPath)Data\" SkipUnchangedFiles="true" Condition="Exists('@(Iris2StaticData)')" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy repo-root Data\base-mesh-models.json to output (Sidekick base-mesh registry). -->
+  <ItemGroup>
+    <BaseMeshRegistry Include="$(ProjectDir)..\..\..\..\Data\base-mesh-models.json" />
+  </ItemGroup>
+  <Target Name="CopyBaseMeshRegistry" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(BaseMeshRegistry)" DestinationFolder="$(OutputPath)Data\" SkipUnchangedFiles="true" Condition="Exists('@(BaseMeshRegistry)')" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy repo-root Data\uo-sidekick-map.json to output (UO graphic → Sidekick part mapping for AttachmentRenderer.AutoFromEquipment). -->
+  <ItemGroup>
+    <UoSidekickMap Include="$(ProjectDir)..\..\..\..\Data\uo-sidekick-map.json" />
+  </ItemGroup>
+  <Target Name="CopyUoSidekickMap" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(UoSidekickMap)" DestinationFolder="$(OutputPath)Data\" SkipUnchangedFiles="true" Condition="Exists('@(UoSidekickMap)')" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy repo-root Data\mobile-3d-index.json to output (NPC type/body → Synty pack mapping for Mobile3DIndex). -->
+  <ItemGroup>
+    <Mobile3DIndex Include="$(ProjectDir)..\..\..\..\Data\mobile-3d-index.json" />
+  </ItemGroup>
+  <Target Name="CopyMobile3DIndex" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(Mobile3DIndex)" DestinationFolder="$(OutputPath)Data\" SkipUnchangedFiles="true" Condition="Exists('@(Mobile3DIndex)')" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy prototypes/3DCUO/Data/Replays/**/*.json (player path
+       recorder + cinematic replay files; PathRecorderManager / PathReplayManager). -->
+  <ItemGroup>
+    <ReplayDataFiles Include="$(ProjectDir)..\..\Data\Replays\**\*.json" />
+  </ItemGroup>
+  <Target Name="CopyReplayData" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(ReplayDataFiles)" DestinationFiles="@(ReplayDataFiles->'$(OutputPath)Data\Replays\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 3DCUO migration smoke test: copy Data/test-meshes/*.umesh (Option B pre-baked binary mesh format). -->
+  <ItemGroup>
+    <UMeshFiles Include="$(ProjectDir)..\..\Data\test-meshes\**\*.umesh" />
+  </ItemGroup>
+  <Target Name="CopyUMeshes" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(UMeshFiles)" DestinationFiles="@(UMeshFiles->'$(OutputPath)Data\test-meshes\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 
   <ItemGroup>
     <Compile Update="Resources\ResErrorMessages.Designer.cs">
@@ -113,6 +226,69 @@
       <UowwDataFiles Include="$(ProjectDir)..\..\Data\Client\*.zones.json;$(ProjectDir)..\..\Data\Client\*.csv" />
     </ItemGroup>
     <Copy SourceFiles="@(UowwDataFiles)" DestinationFolder="$(OutputPath)Data\Client\" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- ADR-012 Phase 4: data-driven renderer config (weather-ground-overlay.json,
+       wind-defaults.json, etc). Source-of-truth lives at <fork>/Data/renderer3d/. -->
+  <Target Name="CopyRenderer3DConfig" AfterTargets="Build">
+    <ItemGroup>
+      <Renderer3DConfigFiles Include="$(ProjectDir)..\..\Data\renderer3d\*.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(Renderer3DConfigFiles)" DestinationFolder="$(OutputPath)Data\renderer3d\" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 3DCUO PROTOTYPE: copy Data/voicelines/** (mp3 banks for crowd-mimic + NPC chatter). -->
+  <Target Name="CopyVoicelines" AfterTargets="Build">
+    <ItemGroup>
+      <VoicelineFiles Include="$(ProjectDir)..\..\Data\voicelines\**\*.mp3" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VoicelineFiles)" DestinationFiles="@(VoicelineFiles->'$(OutputPath)Data\voicelines\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- ──────────────────────────────────────────────────────────────────────
+       NPC persona voice audio. Source-of-truth lives at <repo>/audio/npc/
+       (312 MB / ~7,000 mp3s produced offline by the ElevenLabs synth
+       pipeline). The server sends relative paths like
+       "audio/npc/personas/<key>/<file>.mp3" and the client resolves them
+       against $(OutputPath)Data/voicelines/.
+
+       Dev build (Windows): create a directory junction so we don't double
+                            312 MB on disk and rebuilds stay instant.
+       Dev build (non-Win): fall back to a real copy.
+       Publish: always copy — installers/zips can't follow junctions.
+       ────────────────────────────────────────────────────────────────────── -->
+
+  <Target Name="LinkNpcVoiceAudio_build"
+          AfterTargets="Build"
+          Condition="'$(_IsWindows)' == 'true'">
+    <PropertyGroup>
+      <_NpcAudioLink>$(OutputPath)Data\voicelines\audio</_NpcAudioLink>
+      <_NpcAudioSrc>$(ProjectDir)..\..\..\..\audio</_NpcAudioSrc>
+    </PropertyGroup>
+    <MakeDir Directories="$(OutputPath)Data\voicelines" />
+    <!-- Idempotent: only create the junction if it isn't already there. -->
+    <Exec Command='cmd /c if not exist "$(_NpcAudioLink)" mklink /J "$(_NpcAudioLink)" "$(_NpcAudioSrc)"'
+          IgnoreExitCode="true" />
+  </Target>
+
+  <Target Name="CopyNpcVoiceAudio_build"
+          AfterTargets="Build"
+          Condition="'$(_IsWindows)' != 'true'">
+    <ItemGroup>
+      <NpcVoiceMp3 Include="$(ProjectDir)..\..\..\..\audio\**\*.mp3" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NpcVoiceMp3)"
+          DestinationFiles="@(NpcVoiceMp3->'$(OutputPath)Data\voicelines\audio\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyNpcVoiceAudio_publish" AfterTargets="Publish">
+    <ItemGroup>
+      <NpcVoiceMp3Publish Include="$(ProjectDir)..\..\..\..\audio\**\*.mp3" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NpcVoiceMp3Publish)"
+          DestinationFiles="@(NpcVoiceMp3Publish->'$(PublishDir)Data\voicelines\audio\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
   </Target>
 
   <PropertyGroup>

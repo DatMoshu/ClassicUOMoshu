@@ -30,6 +30,66 @@ namespace ClassicUO.Game.GameObjects
                 return false;
             }
 
+            // 3DCUO PROTOTYPE — RT'ed Mobiles mode trumps everything else.
+            // Render the mobile's 3D model into a pooled RT and submit that RT
+            // as a sprite into the 2D batcher at the mobile's screen anchor.
+            // This makes 3D mobiles sort with all other 2D world content via
+            // the existing batcher z, with no separate 3D world pass needed.
+            bool rtVendorEligible =
+                ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.Enabled
+                && ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.RenderVendorsAs3D
+                && this != World.Player
+                && IsHuman;
+
+            if (ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.Enabled
+                && (this == World.Player || rtVendorEligible))
+            {
+                var rt = ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.GetCached(this);
+                if (rt != null)
+                {
+                    // Foot anchor on screen.
+                    int anchorX = posX + (int)Offset.X + 22;
+                    int anchorY = (posY - 3) + (int)(Offset.Y - Offset.Z) + 22;
+                    // Logical (on-screen) blit dims. RT pixel dims may be
+                    // larger when SuperSample > 1; the batcher downsamples
+                    // via dest-rect scaling.
+                    int logicalW = ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.RTWidth;
+                    int logicalH = ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.RTHeight;
+                    // Model is projected with feet `FootMarginFromBottom` px above
+                    // (logical) RT bottom. Blit so feet land at the foot anchor:
+                    // RT bottom edge ends up `FootMarginFromBottom` px below it.
+                    int blitX = anchorX - logicalW / 2;
+                    int blitY = anchorY
+                              - logicalH
+                              + ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.FootMarginFromBottom
+                              + ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.RTYAnchorOffset;
+                    // Match the depth offset the real 2D body sprite uses (see
+                    // line 846: `depth + 1f + (i * tiles)`). The base `depth`
+                    // value is BEHIND the surrounding land tiles' draw depth —
+                    // that's why the RT was being covered by grass while the
+                    // real sprite at `depth + 1f` was not.
+                    batcher.Draw(rt, new Microsoft.Xna.Framework.Rectangle(blitX, blitY, logicalW, logicalH), new Vector3(0f, 0f, 1f), depth + 1f);
+                    // When Show2DPlayerSprite is on, fall through and let the
+                    // original 2D sprite render on top of the RT — gives the
+                    // user a tight, non-overlap-prone reference figure to A/B
+                    // against the 3D model.
+                    if (!ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.Show2DPlayerSprite)
+                        return true;
+                }
+                // RT couldn't be produced (no GD) — fall through to 2D sprite.
+            }
+
+            // 3DCUO PROTOTYPE — when the legacy 3D player model is rendering,
+            // suppress the 2D player sprite so the two don't overlap and so
+            // depth-tested 3D walls/statics can correctly occlude the player
+            // without the 2D sprite drawing on top.
+            if (this == World.Player &&
+                ClassicUO.Renderer.Renderer3D.Player3DRenderer.Enabled &&
+                !ClassicUO.Renderer.Renderer3D.MobileRT3DRenderer.Enabled)
+            {
+                return true;
+            }
+
             bool charSitting = false;
             ushort overridedHue = 0;
 

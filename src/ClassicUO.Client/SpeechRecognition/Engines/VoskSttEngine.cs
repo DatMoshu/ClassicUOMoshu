@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using ClassicUO.SpeechRecognition.Diagnostics;
 using ClassicUO.SpeechRecognition.Interfaces;
 using Vosk;
+using CUOClient = ClassicUO.Client;
 
 namespace ClassicUO.SpeechRecognition.Engines
 {
@@ -106,7 +107,7 @@ namespace ClassicUO.SpeechRecognition.Engines
                 {
                     string text = textEl.GetString()?.Trim();
                     if (!string.IsNullOrEmpty(text))
-                        FinalResultAvailable?.Invoke(this, new SttResult(text, 1.0f, isFinal: true));
+                        DispatchFinal(new SttResult(text, 1.0f, isFinal: true));
                 }
             }
             catch (JsonException) { /* malformed result — skip */ }
@@ -124,10 +125,33 @@ namespace ClassicUO.SpeechRecognition.Engines
                 {
                     string text = partialEl.GetString()?.Trim();
                     if (!string.IsNullOrEmpty(text))
-                        PartialResultAvailable?.Invoke(this, new SttResult(text, 0f, isFinal: false));
+                        DispatchPartial(new SttResult(text, 0f, isFinal: false));
                 }
             }
             catch (JsonException) { /* malformed result — skip */ }
+        }
+
+        // FeedAudio runs on the NAudio capture thread. Hop to the game's main
+        // loop before invoking subscribers so capture is never blocked by a
+        // slow handler (gump open, packet send, etc.).
+        private void DispatchFinal(SttResult result)
+        {
+            var subs = FinalResultAvailable;
+            if (subs == null) return;
+            if (CUOClient.Game != null)
+                CUOClient.Game.EnqueueAction(0, () => subs.Invoke(this, result));
+            else
+                subs.Invoke(this, result);
+        }
+
+        private void DispatchPartial(SttResult result)
+        {
+            var subs = PartialResultAvailable;
+            if (subs == null) return;
+            if (CUOClient.Game != null)
+                CUOClient.Game.EnqueueAction(0, () => subs.Invoke(this, result));
+            else
+                subs.Invoke(this, result);
         }
 
         private static SttResult ParseResultJson(string json, bool isFinal)

@@ -32,6 +32,42 @@ namespace ClassicUO.Game.Map
         public int X;
         public int Y;
 
+        // Per-tile "exposed to sky" bitmask (64 tiles per chunk → ulong).
+        // Bit `(ty << 3) | tx` is set iff no IsRoof static covers that tile.
+        // Lazy-built on first query; invalidated when the static layout changes.
+        private ulong _exposureMask;
+        private bool  _exposureBuilt;
+
+        public bool IsTileExposedToSky(int tx, int ty)
+        {
+            if (!_exposureBuilt) BuildExposureMask();
+            return (_exposureMask & (1UL << ((ty << 3) | tx))) != 0;
+        }
+
+        private void BuildExposureMask()
+        {
+            ulong mask = 0;
+            for (int ty = 0; ty < 8; ty++)
+            for (int tx = 0; tx < 8; tx++)
+            {
+                bool covered = false;
+                for (var obj = GetHeadObject(tx, ty); obj != null; obj = obj.TNext)
+                {
+                    if (obj is GameObjects.Static s && s.ItemData.IsRoof)
+                    {
+                        covered = true;
+                        break;
+                    }
+                }
+                if (!covered)
+                    mask |= 1UL << ((ty << 3) | tx);
+            }
+            _exposureMask = mask;
+            _exposureBuilt = true;
+        }
+
+        public void InvalidateExposureMask() => _exposureBuilt = false;
+
 
         public static Chunk Create(World world, int x, int y)
         {
@@ -138,6 +174,10 @@ namespace ClassicUO.Game.Map
 
                 ArrayPool<StaticsBlock>.Shared.Return(staticsBlockBuffer);
             }
+
+            // Static layout finalised — exposure mask will be (re)built on
+            // first IsTileExposedToSky() query.
+            _exposureBuilt = false;
         }
 
 

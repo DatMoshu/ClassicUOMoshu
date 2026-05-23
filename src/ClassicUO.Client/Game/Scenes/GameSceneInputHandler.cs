@@ -37,6 +37,26 @@ namespace ClassicUO.Game.Scenes
             _selectionEnd;
         private int AnchorOffset => ProfileManager.CurrentProfile.DragSelectAsAnchor ? 0 : 2;
 
+        // 8-way walk direction from a UO-tile-space delta. Returns the SAME
+        // 1..8 encoding GameCursor.GetMouseDirection emits, so the downstream
+        // `facing - 1` arithmetic still produces the correct Direction enum.
+        // 1=N(Up=7 after-1 mapping), 2=NE/Right(0), 3=E(1), 4=SE(2), 5=S(3),
+        // 6=SW(4), 7=W(5), 8=NW(6). UO axes: +X=East, +Y=South.
+        // Uses DirectionHelper.CalculateDirection for the canonical mapping.
+        private static int DirectionFromTileDelta(int dx, int dy)
+        {
+            if (dx == 0 && dy == 0) return 0;
+            // CalculateDirection returns the Direction enum value (0..7) for moving
+            // from (cur) to (new). We pass (0,0) → (dx,dy).
+            Direction d = DirectionHelper.CalculateDirection(0, 0, dx, dy);
+            if (d == Direction.NONE) return 0;
+            // Map enum (0..7) back to GetMouseDirection's 1..8 space.
+            // The downstream code does `facing - 1` to recover the enum, so
+            // we add 1 here. The N→8 special case below in the caller covers
+            // the wrap-around when our result lands on Direction.North (0).
+            return ((int)d + 1);
+        }
+
         private bool MoveCharacterByMouseInput()
         {
             if ((_rightMousePressed || _continueRunning) && _world.InGame) // && !Pathfinder.AutoWalking)
@@ -49,13 +69,30 @@ namespace ClassicUO.Game.Scenes
                 int x = Camera.Bounds.X + (Camera.Bounds.Width >> 1);
                 int y = Camera.Bounds.Y + (Camera.Bounds.Height >> 1);
 
-                Direction direction = (Direction)
-                    GameCursor.GetMouseDirection(x, y, Mouse.Position.X, Mouse.Position.Y, 1);
+                Direction direction;
+                double mouseRange;
 
-                double mouseRange = MathHelper.Hypotenuse(
-                    x - Mouse.Position.X,
-                    y - Mouse.Position.Y
-                );
+                // 3DCUO PROTOTYPE — when a perspective 3D camera is active the
+                // legacy "screen-center → mouse" direction is wrong: the screen
+                // is no longer aligned with world axes. Use the picked ground
+                // tile vs. player tile to get a true world-space walk vector.
+                if (!Renderer.Renderer3D.World3DRenderer.UseIsoProjection
+                    && Renderer.Renderer3D.CameraModeController.CurrentMode != Renderer.Renderer3D.CameraModeController.Mode.Off)
+                {
+                    int dxTiles = SelectedObject.TranslatedMousePositionByViewport.X - _world.Player.X;
+                    int dyTiles = SelectedObject.TranslatedMousePositionByViewport.Y - _world.Player.Y;
+                    direction = (Direction)DirectionFromTileDelta(dxTiles, dyTiles);
+                    mouseRange = MathHelper.Hypotenuse(dxTiles, dyTiles) * 22.0; // tiles → ~screen-px scale so 'run' threshold still triggers
+                }
+                else
+                {
+                    direction = (Direction)
+                        GameCursor.GetMouseDirection(x, y, Mouse.Position.X, Mouse.Position.Y, 1);
+                    mouseRange = MathHelper.Hypotenuse(
+                        x - Mouse.Position.X,
+                        y - Mouse.Position.Y
+                    );
+                }
 
                 Direction facing = direction;
 
@@ -869,6 +906,30 @@ namespace ClassicUO.Game.Scenes
 
                 if (SelectedObject.Object is GameObject obj)
                 {
+                    // 3DCUO pathfind lockup guard: in 3D camera modes the screen→world
+                    // pick can silently fall back to iso unprojection (GameScene.cs:742-744)
+                    // if MousePicker3D fails — producing tile coords far from the player.
+                    // The legacy A* then expands up to 10k nodes synchronously on the main
+                    // thread, freezing the client. Reject implausibly distant targets.
+                    if (Renderer.Renderer3D.CameraModeController.CurrentMode
+                            != Renderer.Renderer3D.CameraModeController.Mode.Off)
+                    {
+                        int dx = obj.X - _world.Player.X;
+                        int dy = obj.Y - _world.Player.Y;
+                        // 64 tiles ≈ a viewport's worth; anything farther is almost
+                        // certainly a bogus pick from the iso fallback.
+                        const int MAX_PATHFIND_RADIUS = 64;
+                        if (dx * dx + dy * dy > MAX_PATHFIND_RADIUS * MAX_PATHFIND_RADIUS)
+                        {
+                            System.Console.WriteLine(
+                                $"[3DCUO][Pathfind] target ({obj.X},{obj.Y}) too far from player " +
+                                $"({_world.Player.X},{_world.Player.Y}) — likely iso-fallback miss; aborting.");
+                            _world.Player.AddMessage(MessageType.System,
+                                "Can't path there.", 3, 0, false, TextType.CLIENT);
+                            return false;
+                        }
+                    }
+
                     if (obj is Static || obj is Multi || obj is Item)
                     {
                         // previously we only triggered the pathfinder if the target was a surface
@@ -1023,6 +1084,48 @@ namespace ClassicUO.Game.Scenes
                 return true;
             }
 
+            // 3DCUO PROTOTYPE — scroll-wheel zoom / speed for perspective camera modes.
+            // Feature 1 (Sprint-13): geometric zoom step matching Iris2 lib.3d.cam.lua:145-158.
+            //   ThirdPerson / Cinematic: dolly EyeDistance with ×1.5 / ÷1.5 per notch,
+            //                            clamped [100, 1200] world units (≈4.5–54 tiles).
+            //   FreeFly: adjust FreeFlySpeed instead (×1.5 / ÷1.5, clamped [100, 4000]).
+            //   FirstPerson / Off: do nothing — let inventory zoom etc. still work.
+            var mode = ClassicUO.Renderer.Renderer3D.RenderModeController.Mode;
+            if (mode != ClassicUO.Renderer.Renderer3D.RenderMode.Classic2D)
+            {
+                var camMode = ClassicUO.Renderer.Renderer3D.CameraModeController.CurrentMode;
+                const float ZOOM_FACTOR = 1.5f;
+
+                bool dolly =
+                    camMode == ClassicUO.Renderer.Renderer3D.CameraModeController.Mode.ThirdPerson ||
+                    camMode == ClassicUO.Renderer.Renderer3D.CameraModeController.Mode.Cinematic ||
+                    (camMode == ClassicUO.Renderer.Renderer3D.CameraModeController.Mode.Off &&
+                     ClassicUO.Renderer.Renderer3D.World3DRenderer.Camera.UsePerspective);
+
+                if (dolly)
+                {
+                    const float MIN = 100f;   // ~4.5 tiles
+                    const float MAX = 1200f;  // ~54 tiles
+                    var cam = ClassicUO.Renderer.Renderer3D.World3DRenderer.Camera;
+                    float factor = up ? (1f / ZOOM_FACTOR) : ZOOM_FACTOR;
+                    cam.EyeDistance = System.Math.Clamp(cam.EyeDistance * factor, MIN, MAX);
+                    return true;
+                }
+
+                if (camMode == ClassicUO.Renderer.Renderer3D.CameraModeController.Mode.FreeFly)
+                {
+                    const float SPEED_MIN = 100f;
+                    const float SPEED_MAX = 4000f;
+                    float factor = up ? ZOOM_FACTOR : (1f / ZOOM_FACTOR);
+                    ClassicUO.Renderer.Renderer3D.CameraModeController.FreeFlySpeed =
+                        System.Math.Clamp(
+                            ClassicUO.Renderer.Renderer3D.CameraModeController.FreeFlySpeed * factor,
+                            SPEED_MIN, SPEED_MAX);
+                    return true;
+                }
+                // FirstPerson: fall through — do not consume the event.
+            }
+
             return false;
         }
 
@@ -1129,6 +1232,9 @@ namespace ClassicUO.Game.Scenes
         {
             SDL.SDL_Keycode keycode = (SDL.SDL_Keycode)e.key;
 
+            // 3DCUO PROTOTYPE — track WASD / arrow held state for camera-relative walking.
+            if (!e.repeat) Renderer.Renderer3D.WasdMovementController.OnKeyDown(keycode);
+
             if (keycode == SDL.SDL_Keycode.SDLK_TAB && e.repeat)
             {
                 return;
@@ -1208,6 +1314,17 @@ namespace ClassicUO.Game.Scenes
             if (keycode == SDL.SDL_Keycode.SDLK_ESCAPE && _world.TargetManager.IsTargeting)
             {
                 _world.TargetManager.CancelTarget();
+            }
+
+            // 3DCUO PROTOTYPE — F3 cycles render modes
+            // (Classic2D → 3D Iso → Full 3D → Classic2D). Fires globally so
+            // the user can flip modes without the chat needing to be focused.
+            if (!e.repeat && keycode == SDL.SDL_Keycode.SDLK_F3)
+            {
+                ClassicUO.Renderer.Renderer3D.RenderModeController.CycleNext();
+                string label = ClassicUO.Renderer.Renderer3D.RenderModeController.CurrentLabel();
+                GameActions.Print(_world, $"Render mode: {label}", 0x35, MessageType.System);
+                return;
             }
 
             if (UIManager.KeyboardFocusControl != UIManager.SystemChat.TextBoxControl)
@@ -1436,6 +1553,9 @@ namespace ClassicUO.Game.Scenes
 
         internal override void OnKeyUp(SDL.SDL_KeyboardEvent e)
         {
+            // 3DCUO PROTOTYPE — clear WASD / arrow held state.
+            Renderer.Renderer3D.WasdMovementController.OnKeyUp((SDL.SDL_Keycode)e.key);
+
             if (!_world.InGame)
             {
                 return;

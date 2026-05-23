@@ -1,0 +1,10 @@
+{
+  "_comment": "Default lighting parameters for LightingService. Mirrors LightingServiceConfig.Default verbatim. Edit values here, not in code.",
+
+  "LegacyHardcodedDir": { "x": 0.0, "y": 1.0, "z": 1.0 },
+  "MaxElevation": 1.22,
+  "InitialEnabled": false,
+  "InitialAutoCycle": true,
+  "InitialTimeOfDay": 12.0,
+  "InitialCyclePeriodSeconds": 120.0
+}

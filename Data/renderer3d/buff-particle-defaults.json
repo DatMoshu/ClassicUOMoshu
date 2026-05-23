@@ -1,0 +1,25 @@
+{
+  "_comment": "Default buff-particle parameters. Per-archetype emit intervals (seconds). Mirrors BuffParticleServiceConfig.Default verbatim.",
+
+  "InitialEnabled": true,
+  "InitialRequire3DMode": true,
+  "BodyLow": 6.0,
+  "BodyMid": 22.0,
+  "BodyTop": 44.0,
+  "AuraRadius": 14.0,
+  "IntervalFire": 0.06,
+  "IntervalIce": 0.12,
+  "IntervalHoly": 0.10,
+  "IntervalCurse": 0.12,
+  "IntervalPoison": 0.10,
+  "IntervalLightning": 0.18,
+  "IntervalStat": 0.18,
+  "IntervalDefense": 0.20,
+  "IntervalStealth": 0.25,
+  "IntervalFormShift": 0.30,
+  "IntervalWind": 0.08,
+  "IntervalDebuff": 0.20,
+  "IntervalDefault": 0.40,
+  "MaxDeltaSeconds": 0.1,
+  "RandomSeed": 45071
+}

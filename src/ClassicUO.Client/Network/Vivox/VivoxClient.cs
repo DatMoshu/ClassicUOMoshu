@@ -99,15 +99,26 @@ namespace ClassicUO.Network.Vivox
 
         public void Login(string userId, string displayName)
         {
+            string loginToken = VivoxToken.GenerateLoginToken(
+                _config.Issuer, _config.SecretKey, userId, _config.Domain);
+            LoginWithToken(userId, displayName, loginToken);
+        }
+
+        /// <summary>
+        /// Login using a pre-signed JWT (issued by the game server via
+        /// 0xBF/0x0107 VoiceLoginToken). The client never sees the Vivox
+        /// SECRET in this path — only the short-lived JWT.
+        /// </summary>
+        public void LoginWithToken(string userId, string displayName, string loginToken)
+        {
             EnsureInitialized();
+            if (string.IsNullOrEmpty(loginToken))
+                throw new ArgumentException("LoginWithToken requires a non-empty token.", nameof(loginToken));
 
             _userId        = userId;
             _accountHandle = $".{_config.Issuer}.{userId}.";
 
-            string loginToken = VivoxToken.GenerateLoginToken(
-                _config.Issuer, _config.SecretKey, userId, _config.Domain);
-
-            Log.Trace($"[Vivox] Login request: acct='{_accountHandle}' display='{displayName}'");
+            Log.Trace($"[Vivox] Login request (token-based): acct='{_accountHandle}' display='{displayName}' tokenLen={loginToken.Length}");
 
             VivoxNative.vx_req_account_anonymous_login_create(out IntPtr req);
             VivoxStructWriter.SetLoginFields(req, ConnectorHandle, _accountHandle, displayName, loginToken);
@@ -267,6 +278,29 @@ namespace ClassicUO.Network.Vivox
             }
 
             Log.Trace($"[Vivox] Participant {(mute ? "muted" : "unmuted")}: {participantUri}");
+        }
+
+        /// <summary>
+        /// Sets the local playback volume for a specific participant in every
+        /// joined session. Vivox accepts 0..100 (50 = unity). Used to apply
+        /// DeadWhisperVolume when a remote player is a ghost.
+        /// </summary>
+        public void SetParticipantVolumeForMe(string participantUri, int volume0to100)
+        {
+            foreach (var (_, sessionHandle) in _sessionHandles)
+            {
+                VivoxNative.vx_req_session_set_participant_volume_for_me_create(out IntPtr req);
+                if (req == IntPtr.Zero) continue;
+                VivoxStructWriter.SetParticipantVolumeFields(req, sessionHandle, participantUri, volume0to100);
+
+                int rc = VivoxNative.vx_issue_request(req);
+                if (rc != 0)
+                {
+                    Log.Warn($"[Vivox] SetParticipantVolumeForMe failed: rc={rc} vol={volume0to100}");
+                }
+            }
+
+            Log.Trace($"[Vivox] Participant volume={volume0to100}: {participantUri}");
         }
 
         /// <summary>

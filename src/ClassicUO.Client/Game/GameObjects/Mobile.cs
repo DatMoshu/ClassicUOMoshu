@@ -538,6 +538,21 @@ namespace ClassicUO.Game.GameObjects
                 {
                     ref Step step = ref Steps.Back();
 
+                    // Custom HD material-aware footsteps (snow when winter,
+                    // grass otherwise, override via WeatherAdminGump). Returns
+                    // true when it played a sample so we suppress the legacy
+                    // UO 0x012B/0x012C step PCM. Only applies to the local
+                    // player so other mobiles still use UO sounds — keeps the
+                    // change safe and isolated for testing.
+                    if (this == World.Player &&
+                        ClassicUO.Renderer.Renderer3D.FootstepAudioSystem.TryPlayStep(
+                            step.X, step.Y, step.Run, IsMounted))
+                    {
+                        LastStepSoundTime = Time.Ticks + (step.Run ? 260 : 360);
+                        StepSoundOffset = (StepSoundOffset + 1) % 2;
+                        return;
+                    }
+
                     int incID = StepSoundOffset;
                     int soundID = 0x012B;
                     int delaySound = 400;

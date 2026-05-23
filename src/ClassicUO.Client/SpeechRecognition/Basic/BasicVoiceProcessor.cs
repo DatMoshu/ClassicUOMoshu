@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using ClassicUO.Game;
 using ClassicUO.Game.Managers;
 using ClassicUO.SpeechRecognition.Diagnostics;
@@ -74,7 +76,10 @@ namespace ClassicUO.SpeechRecognition.Basic
             RegisterView();
             RegisterMisc();
 
-            SpeechLog.Info(SpeechLogChannel.Route, 
+            // Designer-editable JSON augments the built-in registry.
+            LoadJsonRegistry();
+
+            SpeechLog.Info(SpeechLogChannel.Route,
                 $"[BasicMode] Initialized: {TotalCommands} exact, {ShortcutCount} shortcuts, {ContainsPatternCount} contains");
         }
 
@@ -778,6 +783,215 @@ namespace ClassicUO.SpeechRecognition.Basic
         {
             var action = new BasicCommandAction(command, label);
             _containsPatterns.Add((trigger, action));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // JSON REGISTRY LOADER (designer-editable augment)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        private static readonly string[] JsonSearchPaths =
+        {
+            "Data/voice-commands.json",
+            "../../../../../custom/Data/voice-commands.json",
+            "../../custom/Data/voice-commands.json"
+        };
+
+        private void LoadJsonRegistry()
+        {
+            string foundPath = null;
+            try
+            {
+                string baseDir = AppContext.BaseDirectory ?? Directory.GetCurrentDirectory();
+                foreach (var rel in JsonSearchPaths)
+                {
+                    string full = Path.GetFullPath(Path.Combine(baseDir, rel));
+                    if (File.Exists(full)) { foundPath = full; break; }
+                }
+
+                if (foundPath == null)
+                {
+                    SpeechLog.Debug(SpeechLogChannel.Route,
+                        "[BasicMode] voice-commands.json not found; using built-in registry only.");
+                    return;
+                }
+
+                string json = File.ReadAllText(foundPath);
+                using var doc = JsonDocument.Parse(json,
+                    new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+                var root = doc.RootElement;
+
+                int countShortcut = 0, countExact = 0, countGump = 0, countContains = 0;
+
+                HashSet<string> denied = new(StringComparer.OrdinalIgnoreCase);
+                if (root.TryGetProperty("_doc", out var docEl)
+                    && docEl.TryGetProperty("denied_phrases", out var deniedEl)
+                    && deniedEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var ph in deniedEl.EnumerateArray())
+                    {
+                        var s = ph.GetString();
+                        if (!string.IsNullOrWhiteSpace(s)) denied.Add(s.Trim().ToLowerInvariant());
+                    }
+                }
+
+                if (root.TryGetProperty("shortcuts", out var shortcutsEl) && shortcutsEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var entry in shortcutsEl.EnumerateArray())
+                    {
+                        if (!TryReadMacro(entry, out var mt, out var ms, out var label)) continue;
+                        if (!entry.TryGetProperty("phrase", out var phEl)) continue;
+                        var phrase = phEl.GetString();
+                        if (string.IsNullOrWhiteSpace(phrase) || IsDenied(phrase, denied)) continue;
+                        Shortcut(phrase.Trim().ToLowerInvariant(), mt, ms, label);
+                        countShortcut++;
+                    }
+                }
+
+                if (root.TryGetProperty("exact", out var exactEl) && exactEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var entry in exactEl.EnumerateArray())
+                    {
+                        if (!TryReadMacro(entry, out var mt, out var ms, out var label)) continue;
+                        if (!entry.TryGetProperty("phrases", out var phrasesEl)) continue;
+                        foreach (var phEl in phrasesEl.EnumerateArray())
+                        {
+                            var phrase = phEl.GetString();
+                            if (string.IsNullOrWhiteSpace(phrase) || IsDenied(phrase, denied)) continue;
+                            Exact(phrase.Trim().ToLowerInvariant(), mt, ms, label);
+                            countExact++;
+                        }
+                    }
+                }
+
+                if (root.TryGetProperty("close_gumps", out var closeEl) && closeEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var entry in closeEl.EnumerateArray())
+                    {
+                        if (!TryReadMacro(entry, out var mt, out var ms, out var label)) continue;
+                        if (!entry.TryGetProperty("phrases", out var phrasesEl)) continue;
+                        foreach (var phEl in phrasesEl.EnumerateArray())
+                        {
+                            var phrase = phEl.GetString();
+                            if (string.IsNullOrWhiteSpace(phrase) || IsDenied(phrase, denied)) continue;
+                            Exact(phrase.Trim().ToLowerInvariant(), mt, ms, label);
+                            countExact++;
+                        }
+                    }
+                }
+
+                foreach (var section in new[] { "view", "misc" })
+                {
+                    if (!root.TryGetProperty(section, out var sectEl) || sectEl.ValueKind != JsonValueKind.Array) continue;
+                    foreach (var entry in sectEl.EnumerateArray())
+                    {
+                        if (!TryReadMacro(entry, out var mt, out var ms, out var label)) continue;
+                        if (!entry.TryGetProperty("phrases", out var phrasesEl)) continue;
+                        foreach (var phEl in phrasesEl.EnumerateArray())
+                        {
+                            var phrase = phEl.GetString();
+                            if (string.IsNullOrWhiteSpace(phrase) || IsDenied(phrase, denied)) continue;
+                            Exact(phrase.Trim().ToLowerInvariant(), mt, ms, label);
+                            countExact++;
+                        }
+                    }
+                }
+
+                if (root.TryGetProperty("gumps", out var gumpsEl) && gumpsEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var entry in gumpsEl.EnumerateArray())
+                    {
+                        if (!entry.TryGetProperty("trigger", out var trigEl)) continue;
+                        if (!entry.TryGetProperty("macro_sub", out var subEl)) continue;
+                        if (!entry.TryGetProperty("label", out var labelEl)) continue;
+                        string trigger = trigEl.GetString()?.Trim().ToLowerInvariant();
+                        if (string.IsNullOrEmpty(trigger) || IsDenied(trigger, denied)) continue;
+                        if (!Enum.TryParse<MacroSubType>(subEl.GetString(), out var ms))
+                        {
+                            SpeechLog.Warn(SpeechLogChannel.Route,
+                                $"[BasicMode] gumps[{trigger}]: unknown macro_sub '{subEl.GetString()}' — skipping.");
+                            continue;
+                        }
+                        Gump(trigger, ms, labelEl.GetString() ?? trigger);
+                        countGump++;
+
+                        if (entry.TryGetProperty("aliases", out var aliasesEl) && aliasesEl.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var aliasEl in aliasesEl.EnumerateArray())
+                            {
+                                var alias = aliasEl.GetString()?.Trim().ToLowerInvariant();
+                                if (string.IsNullOrEmpty(alias) || IsDenied(alias, denied)) continue;
+                                Gump(alias, ms, labelEl.GetString() ?? alias);
+                                countGump++;
+                            }
+                        }
+                    }
+                }
+
+                if (root.TryGetProperty("pets_contains", out var petsEl) && petsEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var entry in petsEl.EnumerateArray())
+                    {
+                        if (!entry.TryGetProperty("trigger", out var trigEl)) continue;
+                        if (!entry.TryGetProperty("say", out var sayEl)) continue;
+                        if (!entry.TryGetProperty("label", out var labelEl)) continue;
+                        string trigger = trigEl.GetString()?.Trim().ToLowerInvariant();
+                        string say = sayEl.GetString()?.Trim();
+                        if (string.IsNullOrEmpty(trigger) || string.IsNullOrEmpty(say)) continue;
+                        if (IsDenied(trigger, denied) || IsDenied(say, denied)) continue;
+                        Contains(trigger, say, labelEl.GetString() ?? trigger);
+                        countContains++;
+                    }
+                }
+
+                foreach (var d in denied)
+                {
+                    _exactLookup.Remove(d);
+                    _shortcuts.Remove(d);
+                    _containsPatterns.RemoveAll(p =>
+                        string.Equals(p.Trigger, d, StringComparison.OrdinalIgnoreCase));
+                }
+
+                SpeechLog.Info(SpeechLogChannel.Route,
+                    $"[BasicMode] JSON augment from '{foundPath}': +{countShortcut} shortcuts, +{countExact} exact, +{countGump} gump phrases, +{countContains} contains; {denied.Count} denied phrases enforced.");
+            }
+            catch (Exception ex)
+            {
+                SpeechLog.Warn(SpeechLogChannel.Route,
+                    $"[BasicMode] Failed to load JSON registry from '{foundPath ?? "(not found)"}': {ex.Message}");
+            }
+        }
+
+        private static bool TryReadMacro(JsonElement entry, out MacroType type, out MacroSubType sub, out string label)
+        {
+            type = MacroType.None;
+            sub = MacroSubType.MSC_NONE;
+            label = null;
+
+            if (!entry.TryGetProperty("macro_type", out var typeEl)) return false;
+            if (!entry.TryGetProperty("macro_sub", out var subEl)) return false;
+            if (!entry.TryGetProperty("label", out var labelEl)) return false;
+
+            if (!Enum.TryParse(typeEl.GetString(), out type))
+            {
+                SpeechLog.Warn(SpeechLogChannel.Route,
+                    $"[BasicMode] Unknown macro_type '{typeEl.GetString()}' — skipping.");
+                return false;
+            }
+            if (!Enum.TryParse(subEl.GetString(), out sub))
+            {
+                SpeechLog.Warn(SpeechLogChannel.Route,
+                    $"[BasicMode] Unknown macro_sub '{subEl.GetString()}' — skipping.");
+                return false;
+            }
+            label = labelEl.GetString();
+            return true;
+        }
+
+        private static bool IsDenied(string phrase, HashSet<string> denied)
+        {
+            if (denied.Count == 0) return false;
+            var normalized = phrase.Trim().ToLowerInvariant();
+            return denied.Contains(normalized);
         }
     }
 

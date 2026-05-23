@@ -279,23 +279,27 @@ namespace ClassicUO.SpeechRecognition
             string currentMode = (Settings.GlobalSettings.VoiceCommandMode ?? "basic").ToLowerInvariant();
             SpeechLog.Debug(SpeechLogChannel.Voice, $"Final routing '{text}'  Mode={currentMode}");
 
-            // Route based on mode - Basic mode ALWAYS takes priority for instant execution
+            // Mode routing.
+            // "basic"    — fast hash registry, no HUD, instant execute (default).
+            // "advanced" — ActionInferenceEngine ranked HUD; CommandRouter is the
+            //              fallback for things the inference engine doesn't catch.
+            // Legacy "simple" string is treated as "basic" with a one-shot warning.
+            currentMode = NormalizeMode(currentMode);
+
             if (currentMode == "basic" && _basicProcessor != null)
             {
-                // Basic mode: fast hash-based lookup, no HUD, instant execution
                 if (_basicProcessor.TryProcess(text, out var cmdResult))
                 {
                     _basicProcessor.Execute(cmdResult);
                 }
             }
-            else if (currentMode == "advanced" && Settings.GlobalSettings.InferenceModeEnabled)
+            else if (currentMode == "advanced")
             {
-                // Advanced mode: use inference engine with HUD
-                InferenceEngine.HandleFinalResult(text);
-            }
-            else
-            {
-                // Simple mode: original CommandRouter
+                if (Settings.GlobalSettings.InferenceModeEnabled && InferenceEngine != null)
+                {
+                    InferenceEngine.HandleFinalResult(text);
+                }
+
                 _commandRouter?.RouteFullResult(text);
             }
         }
@@ -310,29 +314,48 @@ namespace ClassicUO.SpeechRecognition
             string text = StripVoskLeadingThe(result.Text);
             if (string.IsNullOrWhiteSpace(text)) { SpeechLog.Trace(SpeechLogChannel.Voice, "Partial dropped — stripped to empty (was 'the')."); return; }
 
-            // Get current mode from settings (can be changed at runtime via gump)
-            string currentMode = (Settings.GlobalSettings.VoiceCommandMode ?? "basic").ToLowerInvariant();
+            string currentMode = NormalizeMode((Settings.GlobalSettings.VoiceCommandMode ?? "basic").ToLowerInvariant());
             SpeechLog.Trace(SpeechLogChannel.Voice, $"Partial routing '{text}'  Mode={currentMode}");
 
-            // Route based on mode - Basic mode ALWAYS takes priority for instant execution
             if (currentMode == "basic" && _basicProcessor != null)
             {
-                // Basic mode: fast hash-based lookup, no HUD, instant execution
                 if (_basicProcessor.TryProcess(text, out var cmdResult))
                 {
                     _basicProcessor.Execute(cmdResult);
                 }
             }
-            else if (currentMode == "advanced" && Settings.GlobalSettings.InferenceModeEnabled)
+            else if (currentMode == "advanced")
             {
-                // Advanced mode: use inference engine with HUD
-                InferenceEngine.HandlePartialResult(text);
-            }
-            else
-            {
-                // Simple mode: original CommandRouter
+                if (Settings.GlobalSettings.InferenceModeEnabled && InferenceEngine != null)
+                {
+                    InferenceEngine.HandlePartialResult(text);
+                }
+
                 _commandRouter?.RoutePartialResult(text, result.Confidence);
             }
+        }
+
+        private bool _simpleModeWarned;
+        private string NormalizeMode(string mode)
+        {
+            if (string.IsNullOrEmpty(mode) || mode == "basic") return "basic";
+            if (mode == "advanced") return "advanced";
+
+            if (mode == "simple")
+            {
+                if (!_simpleModeWarned)
+                {
+                    _simpleModeWarned = true;
+                    SpeechLog.Warn(SpeechLogChannel.Voice,
+                        "voice_command_mode='simple' is deprecated; treating as 'basic'. " +
+                        "CommandRouter (avatar LLM, NLP intent, Q&A) is now an Advanced-mode fallback only.");
+                }
+                return "basic";
+            }
+
+            SpeechLog.Warn(SpeechLogChannel.Voice,
+                $"voice_command_mode='{mode}' unknown; falling back to 'basic'.");
+            return "basic";
         }
 
         /// <summary>

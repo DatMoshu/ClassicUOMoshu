@@ -107,6 +107,10 @@ namespace ClassicUO.Game.Map
 
         public bool IsDirty = true;
 
+        // 3DCUO PROTOTYPE — separate dirty flag for the 3D heightmap mesh.
+        // The 2D pass clears IsDirty before my 3D pass runs, so I need my own.
+        public bool IsDirty3D = true;
+
         private bool _animatedWaterEffect;
         private TextureBucketTracker _landBuckets = new(16);
         private TextureBucketTracker _staticsBuckets = new(32);
@@ -114,8 +118,11 @@ namespace ClassicUO.Game.Map
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MarkDirtyIfNeeded(GameObject obj)
         {
-            if (!IsDirty && obj is GameObjects.Land or Static or Multi)
-                IsDirty = true;
+            if (obj is GameObjects.Land or Static or Multi)
+            {
+                if (!IsDirty) IsDirty = true;
+                if (!IsDirty3D) IsDirty3D = true;
+            }
         }
 
         public void Build(Chunk chunk, World world, GraphicsDevice graphicsDevice)

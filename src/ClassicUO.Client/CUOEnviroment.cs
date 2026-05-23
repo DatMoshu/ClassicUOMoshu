@@ -20,6 +20,15 @@ namespace ClassicUO
         public static bool SkipLoginScreen;
         public static bool NoServerPing;
 
+        // Gump snapshot harness — when GumpSnapshotFactory is non-null, the
+        // client boots far enough to load assets, renders the named client-built
+        // gump to a PNG at GumpSnapshotOutDir, then exits. See
+        // Tools/GumpSnapshot/. Bypasses LoginScene's normal UI.
+        public static string GumpSnapshotFactory;
+        public static string GumpSnapshotOutDir;
+        public static string GumpSnapshotBinPath;
+        public static string GumpSnapshotOutName;
+
         public static readonly bool IsWindows = Environment.OSVersion.Platform == PlatformID.Win32NT || Environment.OSVersion.Platform == PlatformID.Win32Windows || Environment.OSVersion.Platform == PlatformID.Win32S || Environment.OSVersion.Platform == PlatformID.WinCE;
         public static readonly bool IsUnix = !IsWindows;
 

@@ -1,0 +1,16 @@
+{
+  "_comment": "Default seasonal-cycle parameters for SeasonService. Mirrors SeasonServiceConfig.Default verbatim.",
+
+  "InitialEnabled": false,
+  "SecondsPerYear": 60.0,
+  "ShowcaseSecondsPerYear": 180.0,
+  "WindEaseSeconds": 2.5,
+  "SwayAmpEaseSeconds": 1.8,
+  "SwayAmpStormDeg": 22.0,
+  "LightningFlashHalfLifeSeconds": 0.15,
+  "LightningFlashEpsilon": 0.005,
+  "DriveWeatherParticles": true,
+  "RegrowInSpring": true,
+  "DriveSwayFromWeather": true,
+  "DriveFoliageShaderTint": false
+}

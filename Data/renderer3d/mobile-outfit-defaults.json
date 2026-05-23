@@ -1,0 +1,5 @@
+{
+  "_comment": "Default mobile-outfit RNG mixer. The OutfitSlots array stays at MobileOutfitServiceConfig.Default (array loader deferred).",
+
+  "SerialSeedMixer": 2654435761
+}

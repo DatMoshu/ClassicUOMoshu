@@ -47,7 +47,8 @@ namespace ClassicUO.IO.Audio
                         if (m_Repeat)
                         {
                             m_Stream.Position = 0;
-                            m_Stream.Read(m_WaveBuffer, bytesReturned, m_WaveBuffer.Length - bytesReturned);
+                            int tail = m_Stream.Read(m_WaveBuffer, bytesReturned, m_WaveBuffer.Length - bytesReturned);
+                            bytesReturned += tail;
                         }
                         else
                         {

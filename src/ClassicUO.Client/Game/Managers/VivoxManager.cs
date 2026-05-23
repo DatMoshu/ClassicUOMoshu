@@ -33,22 +33,25 @@ namespace ClassicUO.Game.Managers
 
     internal sealed class VivoxManager
     {
-        // ── Vivox Credentials (from developer dashboard) ──────────────────────
-        // TODO: Move these to server-side token generation in ModernUO
-        private const string ISSUER = "23381-uo_vi-15950";
-        private const string SECRET = "wbBixwlgcDErP5F4M6oMwiRxAQ1L86Hd";
-        private const string DOMAIN = "mtu1xp.vivox.com";
-        private const string SERVER = "https://unity.vivox.com/appconfig/23381-uo_vi-15950";
+        // ── Vivox Credentials ────────────────────────────────────────────────
+        // Sourced from Settings (settings.json) until the server-issued JWT
+        // token packet (0xBF/0x0107 VoiceLoginToken) lands. Compiled-in string
+        // constants leak via `strings` on the NativeAOT binary; settings.json
+        // is per-deployment and not committed.
+        private static string Issuer => Settings.GlobalSettings?.VivoxIssuer ?? string.Empty;
+        private static string Secret => Settings.GlobalSettings?.VivoxSecret ?? string.Empty;
+        private static string Domain => Settings.GlobalSettings?.VivoxDomain ?? string.Empty;
+        private static string Server => Settings.GlobalSettings?.VivoxServer ?? string.Empty;
 
         // The single proximity channel all players share
         private const string PROXIMITY_CHANNEL = "uoww-proximity";
 
-        // TEST HARNESS: when true, auto-join hardcoded faction/guild channels
-        // at login so PTT can be exercised without the server 0xBF 0x0101
-        // packet. Remove (or set false) once ModernUO emits real channel info.
-        private const bool AUTO_JOIN_TEST_CHANNELS = true;
-        private const string TEST_FACTION_CHANNEL = "uoww-test-faction";
-        private const string TEST_GUILD_CHANNEL   = "uoww-test-guild";
+        // Development-only auto-join (was a const recompile flag; now runtime
+        // setting, default false). Used so PTT routing can be exercised
+        // without the server emitting a real ChannelInfo packet.
+        private static bool   DevAutoJoinTestChannels => Settings.GlobalSettings?.VivoxDevAutoJoin ?? false;
+        private static string DevFactionChannel       => Settings.GlobalSettings?.VivoxDevFactionChannel ?? string.Empty;
+        private static string DevGuildChannel         => Settings.GlobalSettings?.VivoxDevGuildChannel ?? string.Empty;
 
         // Diagnostic status log cadence (local pos + participant distances).
         private const uint DIAGNOSTIC_LOG_INTERVAL_MS = 3000;
@@ -169,6 +172,11 @@ namespace ClassicUO.Game.Managers
         private readonly Dictionary<string, bool> _speakingStates = new();
         private readonly Dictionary<string, double> _speakingEnergy = new();
 
+        // Tracks last-applied dead/alive volume for each participant uri so
+        // we only issue Vivox volume requests on transitions.
+        // Value: true == we last sent the "dead/whisper" volume, false == alive volume.
+        private readonly Dictionary<string, bool> _appliedDeadState = new();
+
         /// <summary>Fires when any participant's speaking state changes (serial, isSpeaking).</summary>
         public event Action<uint, bool> SpeakingStateChanged;
 
@@ -180,6 +188,19 @@ namespace ClassicUO.Game.Managers
         public float TileToVivoxScale { get; private set; } = 1.0f;
         public bool ProximityOnTrammel { get; private set; }
 
+        // Server-issued Vivox login JWT (0xBF/0x0107). Populated by
+        // OnVoiceTokenReceived. When non-empty, takes precedence over
+        // client-side Settings.VivoxIssuer/Secret.
+        private string _serverIssuedLoginToken;
+        private string _serverIssuedDomain;
+        private string _serverIssuedServer;
+        public bool HasServerIssuedToken => !string.IsNullOrEmpty(_serverIssuedLoginToken);
+
+        // Player identity captured from OnPlayerEnterWorld so that a delayed
+        // server-issued token (arriving after world-enter) can drive a deferred
+        // login without us needing to chase down the current World/Player.
+        private string _pendingCharacterName;
+
         // ── Init / Shutdown ──────────────────────────────────────────────────
 
         public async void Initialize()
@@ -190,7 +211,26 @@ namespace ClassicUO.Game.Managers
 
             try
             {
-                var config = new VivoxClient.Config(ISSUER, SECRET, DOMAIN, SERVER);
+                // Secret is optional — when the server issues login JWTs via
+                // 0xBF/0x0107 the client never needs to sign tokens locally.
+                // Issuer/Domain/Server are still required for SDK init and the
+                // user URI namespace; they are not secrets.
+                if (string.IsNullOrWhiteSpace(Issuer)
+                    || string.IsNullOrWhiteSpace(Domain) || string.IsNullOrWhiteSpace(Server))
+                {
+                    EmitEvent("Vivox not configured (vivox_issuer / vivox_domain / vivox_server in settings.json). Voice disabled.",
+                        HUE_ERR, toJournal: true, level: "WARN");
+                    _initFailed = true;
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(Secret))
+                {
+                    EmitEvent("No client-side Vivox secret — relying on server-issued JWT (0xBF/0x0107).",
+                        HUE_INFO, toJournal: false);
+                }
+
+                var config = new VivoxClient.Config(Issuer, Secret ?? string.Empty, Domain, Server);
                 _client = new VivoxClient(config);
 
                 _client.LoginStateChanged += OnLoginStateChanged;
@@ -243,9 +283,30 @@ namespace ClassicUO.Game.Managers
             try
             {
                 _isLoggingIn = true;
+                _pendingCharacterName = characterName;
                 string userId = SanitizeUserId(characterName);
-                EmitEvent($"Logging in as {characterName}...", HUE_INFO, toJournal: true);
-                _client.Login(userId, characterName);
+
+                if (HasServerIssuedToken)
+                {
+                    EmitEvent($"Logging in as {characterName} (server JWT)...", HUE_INFO, toJournal: true);
+                    _client.LoginWithToken(userId, characterName, _serverIssuedLoginToken);
+                    _serverIssuedLoginToken = null;
+                }
+                else if (!string.IsNullOrWhiteSpace(Secret))
+                {
+                    EmitEvent($"Logging in as {characterName} (legacy creds)...", HUE_INFO, toJournal: true);
+                    _client.Login(userId, characterName);
+                }
+                else
+                {
+                    // No server JWT and no client secret. The server hasn't sent
+                    // 0xBF/0x0107 yet (or never will). Leave the SDK initialized
+                    // so OnVoiceTokenReceived can drive a delayed login.
+                    EmitEvent("Awaiting server-issued Vivox token before login.",
+                        HUE_INFO, toJournal: false);
+                    _isLoggingIn = false;
+                    return;
+                }
             }
             catch (Exception ex)
             {
@@ -336,7 +397,8 @@ namespace ClassicUO.Game.Managers
                     $"status mode={mode} localPos=({tileX},{tileY}) participants={participantCount} " +
                     $"prox(full={ProximityFullRange},max={ProximityMaxRange})");
 
-                // Per-participant distance line
+                // Per-participant distance line. Also converge dead-volume
+                // state for each mapped participant.
                 foreach (var (uri, isSpeaking) in _speakingStates)
                 {
                     string userId = ExtractUserIdFromUri(uri) ?? "?";
@@ -347,6 +409,7 @@ namespace ClassicUO.Game.Managers
                         && _world.Mobiles.TryGetValue(serial, out var mob)
                         && mob != null)
                     {
+                        ApplyDeadVolumeIfChanged(uri, mob.IsDead);
                         int dx = mob.X - tileX;
                         int dy = mob.Y - tileY;
                         double dist = Math.Sqrt(dx * dx + dy * dy);
@@ -700,9 +763,11 @@ namespace ClassicUO.Game.Managers
 
                 // Test harness: auto-join hardcoded faction/guild channels so
                 // PTT can be exercised without the server sending 0xBF 0x0101.
-                if (AUTO_JOIN_TEST_CHANNELS)
+                if (DevAutoJoinTestChannels)
                 {
-                    SetChannelInfo(TEST_FACTION_CHANNEL, TEST_GUILD_CHANNEL);
+                    EmitEvent($"DEV: auto-joining test channels {DevFactionChannel}/{DevGuildChannel}",
+                        HUE_INFO, toJournal: false);
+                    SetChannelInfo(DevFactionChannel, DevGuildChannel);
                 }
             }
             else if (state == VxLoginState.LoggedOut)
@@ -870,6 +935,74 @@ namespace ClassicUO.Game.Managers
             return sb.Length > 0 ? sb.ToString() : "unknown";
         }
 
+        // ── Server-Issued Token Receiver ─────────────────────────────────────
+
+        /// <summary>
+        /// Called by the 0xBF/0x0107 packet handler. Stores the server-signed
+        /// Vivox login JWT for subsequent use during login.
+        /// </summary>
+        public void OnVoiceTokenReceived(string domain, string server, string loginToken)
+        {
+            _serverIssuedDomain = domain;
+            _serverIssuedServer = server;
+            _serverIssuedLoginToken = loginToken;
+            EmitEvent(
+                $"Server-issued Vivox login token received ({loginToken?.Length ?? 0} chars); " +
+                $"domain='{domain}'.",
+                HUE_INFO, toJournal: false);
+
+            // If the player already entered the world but we were waiting on
+            // the token (secret-less init), kick the deferred login now.
+            if (_client != null && !_initFailed && !_client.IsLoggedIn && !_isLoggingIn
+                && !string.IsNullOrEmpty(_pendingCharacterName))
+            {
+                OnPlayerEnterWorld(_pendingCharacterName);
+            }
+        }
+
+        /// <summary>Returns the most recent server-issued login JWT, or null.</summary>
+        public string GetServerIssuedToken() => _serverIssuedLoginToken;
+
+        /// <summary>
+        /// Applies the DeadWhisperVolume to a participant when their alive/dead
+        /// state has changed since the last application. Living participants
+        /// get unity volume (50). The dead-whisper float is server-configured
+        /// (0.0–0.3) and scaled to Vivox's 0..100 range with 1.0 == 50.
+        /// </summary>
+        private void ApplyDeadVolumeIfChanged(string participantUri, bool isDead)
+        {
+            if (_client == null || !_client.IsLoggedIn) return;
+            if (string.IsNullOrEmpty(participantUri)) return;
+
+            bool previouslyDead;
+            bool known = _appliedDeadState.TryGetValue(participantUri, out previouslyDead);
+            if (known && previouslyDead == isDead) return;
+
+            int volume;
+            if (isDead)
+            {
+                volume = (int)Math.Round(DeadWhisperVolume * 50f);
+                if (volume < 0) volume = 0;
+                if (volume > 100) volume = 100;
+            }
+            else
+            {
+                volume = 50;
+            }
+
+            try
+            {
+                _client.SetParticipantVolumeForMe(participantUri, volume);
+                _appliedDeadState[participantUri] = isDead;
+                WriteEventLog("DIAG",
+                    $"DeadVolume transition uri='{participantUri}' dead={isDead} vol={volume}");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"[VivoxManager] ApplyDeadVolumeIfChanged failed: {ex.Message}");
+            }
+        }
+
         /// <summary>
         /// Extracts the userId from a Vivox participant URI.
         /// URI format: sip:.ISSUER.userId.@domain
@@ -881,7 +1014,7 @@ namespace ClassicUO.Game.Managers
 
             // Try to find the userId between the issuer and the trailing dot
             // Format: sip:.ISSUER.userId.@domain or .ISSUER.userId.
-            var issuerPrefix = $".{ISSUER}.";
+            var issuerPrefix = $".{Issuer}.";
             var idx = uri.IndexOf(issuerPrefix, StringComparison.Ordinal);
             if (idx < 0) return null;
 

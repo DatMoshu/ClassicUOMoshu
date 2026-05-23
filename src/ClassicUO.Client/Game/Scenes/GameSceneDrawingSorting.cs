@@ -33,6 +33,13 @@ namespace ClassicUO.Game.Scenes
 
         private sbyte _maxGroundZ;
         private int _maxZ;
+
+        // 3DCUO PROTOTYPE — public accessors for the Multi3D / Static3D
+        // renderers so they can apply the same "above the player" hide rule
+        // the 2D pipeline already uses. Cheap read-only views; UpdateMaxDrawZ
+        // already runs once per frame.
+        public int   MaxZRender   => _maxZ;
+        public sbyte MaxGroundZ   => _maxGroundZ;
         private Vector2 _minPixel,
             _maxPixel,
             _lastCamOffset;
@@ -51,6 +58,9 @@ namespace ClassicUO.Game.Scenes
 
         private readonly RenderLists _renderLists = new();
         private readonly List<Map.Chunk> _visibleChunks = new();
+
+        // 3DCUO PROTOTYPE — debug gump auto-open flag
+        private bool _debug3DGumpOpened;
 
         public sbyte FoliageIndex { get; private set; }
 
@@ -1227,6 +1237,13 @@ namespace ClassicUO.Game.Scenes
             }
 
             int size = (int)(Math.Max(winGameWidth / 44f + 1, winGameHeight / 44f + 1) * zoom);
+            // 3DCUO PROTOTYPE — extend the chunk-load radius when 3D is on, so the
+            // free / perspective camera doesn't run off the edge of loaded chunks.
+            float renderDistMul = ClassicUO.Renderer.Renderer3D.World3DRenderer.RenderDistanceMultiplier;
+            if (ClassicUO.Renderer.Renderer3D.World3DRenderer.Enabled && renderDistMul > 1f)
+            {
+                size = (int)(size * renderDistMul);
+            }
 
             if (Camera.Offset.X != 0 || Camera.Offset.Y != 0)
             {
@@ -1235,10 +1252,25 @@ namespace ClassicUO.Game.Scenes
             }
             ;
 
-            int realMinRangeX = Math.Max(0, tileOffX - size);
-            int realMaxRangeX = tileOffX + size;
-            int realMinRangeY = Math.Max(0, tileOffY - size);
-            int realMaxRangeY = tileOffY + size;
+            // 3DCUO PROTOTYPE — let FreeFly camera drive chunk-window centering so
+            // we can roam far from the player without flying off loaded terrain.
+            // Screen-draw offsets above stay player-relative (the 2D scene still
+            // renders around the player) — only the chunk-load box moves.
+            int chunkOffX = tileOffX;
+            int chunkOffY = tileOffY;
+            if (ClassicUO.Renderer.Renderer3D.CameraModeController.FreeFlyDrivesChunks
+                && ClassicUO.Renderer.Renderer3D.CameraModeController.CurrentMode
+                   == ClassicUO.Renderer.Renderer3D.CameraModeController.Mode.FreeFly)
+            {
+                var eye = ClassicUO.Renderer.Renderer3D.CameraModeController.FreeFlyEye;
+                chunkOffX = (int)(eye.X / 22f);
+                chunkOffY = (int)(eye.Z / 22f);
+            }
+
+            int realMinRangeX = Math.Max(0, chunkOffX - size);
+            int realMaxRangeX = chunkOffX + size;
+            int realMinRangeY = Math.Max(0, chunkOffY - size);
+            int realMaxRangeY = chunkOffY + size;
 
             int drawOffset = (int)(44 / zoom);
 

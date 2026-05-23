@@ -11,6 +11,7 @@ using ClassicUO.Game.UI.Controls;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.IO;
 using ClassicUO.Renderer;
+using ClassicUO.Renderer.Renderer3D;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
@@ -288,6 +289,7 @@ namespace ClassicUO.Network
             Handler.Add(0xDD, OpenCompressedGump);
             Handler.Add(0xDE, UpdateMobileStatus);
             Handler.Add(0xDF, BuffDebuff);
+            Handler.Add(0xE0, ClassicUO.Game.UI.Gumps.BoardGames.BoardGamePackets.Handle);
             Handler.Add(0xE2, NewCharacterAnimation);
             Handler.Add(0xE3, KREncryptionResponse);
             Handler.Add(0xE5, DisplayWaypoint);
@@ -476,6 +478,13 @@ namespace ClassicUO.Network
                 if (damage > 0)
                 {
                     world.WorldTextManager.AddDamage(entity, damage);
+
+                    // 3DCUO: drive the 3D player rig's Hit oneshot off the damage packet,
+                    // since the server doesn't send a separate "got hit" animation.
+                    if (entity == world.Player)
+                    {
+                        Player3DRenderer.TriggerOneShot(AnimState.Hit, 0.6f);
+                    }
                 }
             }
         }
@@ -2430,6 +2439,23 @@ namespace ClassicUO.Network
                 forward,
                 true
             );
+
+            // 3DCUO: forward swing/hit to the 3D player rig (legacy 0x6E action codes for humans).
+            if (mobile == world.Player)
+            {
+                if (action >= 9 && action <= 15)
+                {
+                    Player3DRenderer.TriggerOneShot(AnimState.Attack, 1.2f);
+                }
+                else if (action == 16)
+                {
+                    Player3DRenderer.TriggerOneShot(AnimState.Hit, 0.6f);
+                }
+                else if (action == 17 || action == 18)
+                {
+                    Player3DRenderer.TriggerOneShot(AnimState.Die, 2.0f);
+                }
+            }
         }
 
         private static void GraphicEffect(World world, ref StackDataReader p)
@@ -4729,14 +4755,51 @@ namespace ClassicUO.Network
 
                 //===========================================================================================
                 //===========================================================================================
-                case 0x0102: // NPC voice line (UOWW)
+                case 0x0102: // NPC voice line (UOWW) — V2 carries optional talking-head fields
                 {
                     if (world.Player == null) break;
                     uint npcSerial = p.ReadUInt32BE();
                     int pathLen = p.ReadUInt8();
                     string relPath = pathLen > 0 ? p.ReadASCII(pathLen) : string.Empty;
-                    if (!string.IsNullOrEmpty(relPath))
-                        ClassicUO.Game.Managers.NpcVoiceManager.Instance.Play(relPath);
+
+                    // V2 trailing fields. Old senders that didn't write them
+                    // leave Remaining == 0 here; we treat that as "no head".
+                    ushort headBaseGumpId = 0;
+                    byte headFrameCount = 0;
+                    if (p.Remaining >= 3)
+                    {
+                        headBaseGumpId = p.ReadUInt16BE();
+                        headFrameCount = p.ReadUInt8();
+                    }
+
+                    if (string.IsNullOrEmpty(relPath))
+                        break;
+
+                    if (headBaseGumpId != 0 && headFrameCount > 0)
+                    {
+                        // Talking-head NPC: route through the gump so it
+                        // owns the audio playback and frame cycling together.
+                        var existing = ClassicUO.Game.Managers.UIManager
+                            .GetGump<ClassicUO.Game.UI.Gumps.TalkingHeadGump>(npcSerial);
+                        existing?.Dispose();
+                        ClassicUO.Game.Managers.UIManager.Add(
+                            new ClassicUO.Game.UI.Gumps.TalkingHeadGump(
+                                world, npcSerial, headBaseGumpId, headFrameCount, relPath));
+                    }
+                    else
+                    {
+                        // No head registered — audio only. Pass npcSerial so the
+                        // manager can apply per-NPC cooldowns and recognise the
+                        // narrator (Serial.MinusOne = 0xFFFFFFFF).
+                        string speakerName = "?";
+                        var src = world.Get(npcSerial);
+                        if (src != null && !string.IsNullOrEmpty(src.Name))
+                        {
+                            speakerName = src.Name;
+                        }
+                        ClassicUO.Game.Managers.NpcVoiceManager.Instance.Play(
+                            relPath, (uint)npcSerial, speakerName);
+                    }
                     break;
                 }
 
@@ -4791,6 +4854,19 @@ namespace ClassicUO.Network
                     int ilen  = p.ReadUInt16BE();
                     string itxt = ilen > 0 ? p.ReadUTF8(ilen) : string.Empty;
                     ClassicUO.Game.UI.Gumps.WorldMapGump.PushWarIntel(imap, ix, iy, isev, itxt);
+                    break;
+                }
+
+                case 0x0107: // UOWW — Voice Login Token (server-issued Vivox JWT)
+                {
+                    if (world.Player == null) break;
+                    byte dLen = p.ReadUInt8();
+                    string domain = dLen > 0 ? p.ReadASCII(dLen) : string.Empty;
+                    int sLen = p.ReadUInt16BE();
+                    string server = sLen > 0 ? p.ReadASCII(sLen) : string.Empty;
+                    int tLen = p.ReadUInt16BE();
+                    string token = tLen > 0 ? p.ReadASCII(tLen) : string.Empty;
+                    world.VivoxManager?.OnVoiceTokenReceived(domain, server, token);
                     break;
                 }
 
@@ -5721,6 +5797,23 @@ namespace ClassicUO.Network
                 forward: true,
                 fromServer: true
             );
+
+            // 3DCUO: forward swing/hit/death to the 3D player rig (SA-era 0xE2 type codes).
+            if (mobile == world.Player)
+            {
+                switch (type)
+                {
+                    case 0: // Attack
+                        Player3DRenderer.TriggerOneShot(AnimState.Attack, 1.2f);
+                        break;
+                    case 1: // Defending / got-hit
+                        Player3DRenderer.TriggerOneShot(AnimState.Hit, 0.6f);
+                        break;
+                    case 2: // Death
+                        Player3DRenderer.TriggerOneShot(AnimState.Die, 2.0f);
+                        break;
+                }
+            }
         }
 
         private static void KREncryptionResponse(World world, ref StackDataReader p) { }
@@ -6628,7 +6721,9 @@ namespace ClassicUO.Network
             container.Items = remove_unequipped ? new_first : null;
         }
 
-        private static Gump CreateGump(
+        // internal so the GumpSnapshot harness (Tools/GumpSnapshot/GumpReplayBuilder)
+        // can replay captured 0xDD gump dumps without going through the network path.
+        internal static Gump CreateGump(
             World world,
             uint sender,
             uint gumpID,

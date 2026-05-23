@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ADR-012 Phase 5 — unit test project for migrated Renderer3D services.
+
+    Distinct from the upstream-focused ClassicUO.UnitTests (which exercises legacy
+    pre-migration code under tests/ClassicUO.UnitTests/). This project hosts tests
+    for the post-ADR-012 service surface: storage gateways, config parsers,
+    pure-state services like IRoofRegistryService.
+
+    GPU-bound integration tests (pass.Execute parity, mesh draw) require a real
+    GraphicsDevice and are NOT hosted here yet — the FNA headless harness lives
+    in a future test project named ClassicUO.Renderer.Tests when that lands.
+  -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <DebugType>Full</DebugType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TargetFramework>net10.0</TargetFramework>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- ADR-012 services use init-only properties + records; nullable disabled to match upstream. -->
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ClassicUO.Client\ClassicUO.Client.csproj" />
+  </ItemGroup>
+
+  <!--
+    Phase 5 (session 74): copy FNA native libs (SDL3, FNA3D, FAudio, etc.) into the
+    test bin so HeadlessGraphicsFixture can boot FNA's GraphicsDevice in a unit
+    test process. Mirrors the main client's runtime layout — without this the
+    test process throws "FNA3D.dll not found" at first GraphicsDevice ctor call.
+    Source: client/ClassicUO/external/x64/*.dll
+  -->
+  <Target Name="CopyFnaNatives" AfterTargets="Build">
+    <ItemGroup>
+      <FnaNatives Include="$(ProjectDir)..\..\external\x64\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(FnaNatives)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

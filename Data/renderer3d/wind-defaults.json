@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../design/Core/Architecture/renderer3d/schemas/wind-defaults.schema.json",
+  "_comment": "Default wind parameters consumed by WindService at startup. Values mirror the prior hardcoded constants in the legacy WindManager static class. Edit values here, not in code.",
+
+  "InitialStrength": 0.4,
+  "InitialDirectionDeg": 90.0,
+  "BaseFrequencyHz": 0.35,
+  "WeatherParticleAdvection": 120.0,
+  "LinkToWeather": true,
+
+  "GustChangeMin": 5.0,
+  "GustChangeMax": 9.0,
+  "GustStrengthMin": 0.3,
+  "GustStrengthMax": 0.9,
+  "GustDirectionRangeDeg": 60.0,
+  "GustLerpSpeed": 1.5,
+
+  "StormStrengthFloor": 0.55,
+  "StormStrengthCeiling": 1.0,
+  "StormCadenceMultiplier": 0.5,
+  "StormCadenceFloorSeconds": 0.6,
+
+  "RandomSeed": 728037
+}

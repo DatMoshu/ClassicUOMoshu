@@ -1,0 +1,6 @@
+{
+  "_comment": "Default wall-neighbor classifier parameters. Mirrors WallNeighborClassifierConfig.Default verbatim.",
+
+  "ZTolerance": 4,
+  "Enabled": true
+}

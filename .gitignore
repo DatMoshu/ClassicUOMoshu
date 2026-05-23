@@ -264,4 +264,9 @@ paket.lock
 __pycache__/
 *.pyc
 /.svn
-Data
+# Ignore Data/ contents — runtime assets are not version-controlled. Use Data/*
+# (not "Data") so we can re-include specific subdirectories below.
+Data/*
+# ADR-012 Phase 4 — checked-in renderer data-driven config (small JSON files).
+!Data/renderer3d/
+!Data/renderer3d/**

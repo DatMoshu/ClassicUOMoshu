@@ -1,0 +1,15 @@
+{
+  "_comment": "Default fire-patch simulator parameters. Mirrors FireServiceConfig.Default verbatim.",
+
+  "InitialEnabled": true,
+  "DefaultRadius": 35.0,
+  "DefaultLifetime": 9.0,
+  "EmberRatePerSec": 90.0,
+  "SmokeRatePerSec": 18.0,
+  "MaxFires": 16,
+  "WindAdvectionScale": 35.0,
+  "MinIgniteRadius": 2.0,
+  "MinIgniteLifetime": 0.5,
+  "MaxDeltaSeconds": 0.1,
+  "RandomSeed": 61870
+}

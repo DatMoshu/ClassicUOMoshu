@@ -482,6 +482,26 @@ namespace ClassicUO
                         CUOEnviroment.NoServerPing = true;
 
                         break;
+
+                    case "gump-snapshot":
+                    case "gump_snapshot":
+                        CUOEnviroment.GumpSnapshotFactory = value;
+                        break;
+
+                    case "snapshot-out":
+                    case "snapshot_out":
+                        CUOEnviroment.GumpSnapshotOutDir = value;
+                        break;
+
+                    case "gump-replay":
+                    case "gump_replay":
+                        CUOEnviroment.GumpSnapshotBinPath = value;
+                        break;
+
+                    case "snapshot-name":
+                    case "snapshot_name":
+                        CUOEnviroment.GumpSnapshotOutName = value;
+                        break;
                 }
             }
         }

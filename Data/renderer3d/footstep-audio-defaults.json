@@ -1,0 +1,15 @@
+{
+  "_comment": "Default footstep-audio scalars + enums. FolderNames dict stays at FootstepAudioServiceConfig.Default. Enums use case-insensitive string names — Auto/Grass/Stone/Sand/Wood/Snow/Gravel/Water/Metal/Rug for FootstepMaterial; Barefoot/Shoe/Boot/Hoof for FootwearKind.",
+
+  "InitialEnabled": false,
+  "InitialVolume": 0.7,
+  "VerboseLog": false,
+  "InitialAutoUseSnowInWinter": true,
+  "InitialOverrideMaterial": "Auto",
+  "InitialDefaultMaterial": "Grass",
+  "InitialFootwear": "Shoe",
+  "Variants": 5,
+  "PitchJitter": 0.18,
+  "RandomSeed": 61447,
+  "PackSubPath": "Audio\\AutoFootStepsPlugin_Godot_0.8.2\\addons\\ovani_auto_footsteps\\DefaultSounds"
+}

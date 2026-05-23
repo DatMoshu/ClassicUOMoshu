@@ -7,3 +7,6 @@
 [submodule "external/FileEmbed"]
 	path = external/FileEmbed
 	url = https://github.com/SirCxyrtyx/FileEmbed.git
+[submodule "external/uoww-assets"]
+	path = external/uoww-assets
+	url = file:///D:/_Repos2026/UOWW_Assets

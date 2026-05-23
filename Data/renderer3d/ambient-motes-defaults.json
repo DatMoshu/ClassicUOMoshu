@@ -1,0 +1,21 @@
+{
+  "_comment": "Default ambient-mote parameters. Mirrors AmbientMotesServiceConfig.Default verbatim.",
+
+  "InitialEnabled": false,
+  "InitialPalette": "kokiri",
+  "UseSoftGlow": true,
+  "Radius": 264.0,
+  "MinHeight": 8.0,
+  "MaxHeight": 140.0,
+  "TargetAlive": 120,
+  "SpawnRatePerSecond": 28.0,
+  "PerTickSpawnCap": 32,
+  "MaxDeltaSeconds": 0.1,
+  "DriftUp": 12.0,
+  "SwayHorizontalMax": 22.0,
+  "LifetimeMin": 6.0,
+  "LifetimeMax": 11.0,
+  "SizeStart": 5.0,
+  "SizeEnd": 1.0,
+  "RandomSeed": 41339
+}

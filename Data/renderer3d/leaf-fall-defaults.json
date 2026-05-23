@@ -1,0 +1,15 @@
+{
+  "_comment": "Default leaf-fall parameters for LeafFallService. Mirrors LeafFallServiceConfig.Default verbatim.",
+
+  "MaxLeaves": 1024,
+  "MaxSpawnPerSecond": 30.0,
+  "SpawnRadius": 480.0,
+  "SpawnHeight": 220.0,
+  "WindAdvectionScale": 35.0,
+  "WindDriftFraction": 0.6,
+  "SwayAmplitude": 18.0,
+  "SwayFrequencyRad": 2.2,
+  "InitialEnabled": true,
+  "RandomSeed": -889122578,
+  "MaxDeltaSeconds": 0.1
+}

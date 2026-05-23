@@ -151,6 +151,12 @@ public static class VivoxNative
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern int vx_req_session_set_participant_mute_for_me_create(out IntPtr req);
 
+    // Per-participant volume scaling, for the local user only.
+    // Volume range 0..100, default 50. Used to apply DeadWhisperVolume
+    // when a remote participant transitions to ghost state.
+    [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int vx_req_session_set_participant_volume_for_me_create(out IntPtr req);
+
     // Set which session within a session group is the active TX (transmit) session.
     // Required after joining a channel — without this the mic stays disconnected
     // from the channel and remote participants hear silence.
@@ -346,6 +352,21 @@ public static class VivoxStructWriter
         Marshal.WriteIntPtr(req, 48, S(participantUri));
         Marshal.WriteInt32(req, 56, mute ? 1 : 0);
         Marshal.WriteInt32(req, 60, 0); // mute_scope_all
+    }
+
+    // struct vx_req_session_set_participant_volume_for_me (x64):
+    //   vx_req_base_t base           @ 0   (40 bytes)
+    //   char* session_handle         @ 40
+    //   char* participant_uri        @ 48
+    //   int volume                   @ 56  (0..100, 50 = unity)
+    //   [4 bytes padding]            @ 60
+    public static void SetParticipantVolumeFields(IntPtr req, string sessionHandle, string participantUri, int volume)
+    {
+        if (volume < 0) volume = 0;
+        if (volume > 100) volume = 100;
+        Marshal.WriteIntPtr(req, 40, S(sessionHandle));
+        Marshal.WriteIntPtr(req, 48, S(participantUri));
+        Marshal.WriteInt32(req, 56, volume);
     }
 
     // ── Set TX Session Request ──────────────────────────────────────────────

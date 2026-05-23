@@ -508,7 +508,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     MessageType[] selectedTypes = ProfileManager.CurrentProfile.JournalTabs[name];
 
-                    foreach (MessageType item in Enum.GetValues(typeof(MessageType)))
+                    foreach (MessageType item in Enum.GetValues<MessageType>())
                     {
                         string entryName = string.Empty;
                         switch (item)

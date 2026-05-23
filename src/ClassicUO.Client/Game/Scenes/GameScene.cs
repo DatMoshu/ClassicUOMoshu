@@ -9,6 +9,10 @@ using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
+using ClassicUO.Renderer.Renderer3D;
+using ClassicUO.Renderer.Atmosphere;
+using ClassicUO.Renderer.Core;
+using ClassicUO.Renderer.World;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
@@ -78,13 +82,23 @@ namespace ClassicUO.Game.Scenes
 
         public bool UpdateDrawPosition { get; set; }
         public bool DisconnectionRequested { get; set; }
+        // 3DCUO: when in Full 3D (perspective) the legacy 2D darkness overlay over-dims
+        // the world. Suppress it unless the user opts back in via World3DRenderer.Disable2DLightingIn3D = false.
+        private static bool Suppress2DLightsFor3D() =>
+            Renderer.Renderer3D.World3DRenderer.Disable2DLightingIn3D
+            && !Renderer.Renderer3D.World3DRenderer.UseIsoProjection
+            && Renderer.Renderer3D.CameraModeController.CurrentMode
+                != Renderer.Renderer3D.CameraModeController.Mode.Off;
+
         public bool UseLights =>
-            ProfileManager.CurrentProfile != null
-            && ProfileManager.CurrentProfile.UseCustomLightLevel
-                ? _world.Light.Personal < _world.Light.Overall
-                : _world.Light.RealPersonal < _world.Light.RealOverall;
+            !Suppress2DLightsFor3D()
+            && (ProfileManager.CurrentProfile != null
+                && ProfileManager.CurrentProfile.UseCustomLightLevel
+                    ? _world.Light.Personal < _world.Light.Overall
+                    : _world.Light.RealPersonal < _world.Light.RealOverall);
         public bool UseAltLights =>
-            ProfileManager.CurrentProfile != null
+            !Suppress2DLightsFor3D()
+            && ProfileManager.CurrentProfile != null
             && ProfileManager.CurrentProfile.UseAlternativeLights;
 
         public void DoubleClickDelayed(uint serial)
@@ -92,9 +106,242 @@ namespace ClassicUO.Game.Scenes
             _useItemQueue.Add(serial);
         }
 
+        // Renderer3D service container (ADR-012). Owned by this GameScene; bound to the
+        // global Renderer3DHost migration locator so legacy static subsystems can reach
+        // services during Phase 2 migration. Disposed in Unload.
+        private Renderer3DServices _renderer3DServices;
+
         public override void Load()
         {
             base.Load();
+
+            // Bring up the renderer3D service container before any Renderer3D subsystem
+            // can be touched. Order: construct services → register domain services →
+            // freeze pipeline → bind host. Bind last so any wiring failure leaves the
+            // host unbound (cleaner failure mode than a half-built container).
+            _renderer3DServices = new Renderer3DServices();
+            // ADR-012 Phase 4: load from Data/renderer3d/wind-defaults.json via the
+            // storage gateway pattern. Missing / malformed config returns Default + a
+            // warning log so a broken JSON can't black-out the wind subsystem.
+            WindServiceConfig windConfig =
+                new ClassicUO.Renderer.Renderer3D.FileWindServiceConfigStorage().Load().Config;
+            _renderer3DServices.RegisterWind(windConfig);
+
+            // ADR-012 Phase 4 (session 68): each *ServiceConfig loads from its own JSON
+            // file via the storage-gateway pattern established by session 67. Missing /
+            // malformed configs fall back to `.Default` with a console warning.
+            _renderer3DServices.RegisterLighting(
+                new ClassicUO.Renderer.Renderer3D.FileLightingServiceConfigStorage().Load().Config,
+                new ProfileManagerLightingGateway());
+
+            _renderer3DServices.RegisterWeather(
+                new ClassicUO.Renderer.Renderer3D.FileWeatherServiceConfigStorage().Load().Config);
+
+            // Single audio library instance shared by every audio-consuming service.
+            var sharedAudioLibrary = new ClassicUO.Renderer.Renderer3D.LegacyAudioClipLibrary();
+            _renderer3DServices.RegisterWeatherAudio(
+                new ClassicUO.Renderer.Renderer3D.FileWeatherAudioServiceConfigStorage().Load().Config,
+                sharedAudioLibrary);
+
+            _renderer3DServices.RegisterWeatherDefaults(
+                new ClassicUO.Renderer.Renderer3D.FileWeatherDefaultsStorage(),
+                new ClassicUO.Renderer.Renderer3D.LegacyWeatherDefaultsHost());
+            // Load persisted overrides from disk now that the service exists. Moved here
+            // from Client.Load (which runs before Renderer3DHost is bound). Failure is
+            // non-fatal — Service.LastError carries the message for the gump to display.
+            _renderer3DServices.WeatherDefaults.Load();
+
+            _renderer3DServices.RegisterSeason(
+                new ClassicUO.Renderer.Renderer3D.FileSeasonServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacySeasonHostBridge());
+
+            _renderer3DServices.RegisterTreeSeason(
+                new ClassicUO.Renderer.Renderer3D.FileTreeSeasonServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.TreeTextureCacheGateway());
+
+            _renderer3DServices.RegisterTreeStaticRegistry(
+                new ClassicUO.Renderer.Renderer3D.FileTreeStaticRegistryStorage());
+            // Load the registry now (was previously called from Client.Load before host binding).
+            _renderer3DServices.TreeStaticRegistry.Load();
+
+            _renderer3DServices.RegisterIris2Static(
+                new ClassicUO.Renderer.Renderer3D.FileIris2StaticRegistryStorage());
+            _renderer3DServices.Iris2Static.EnsureLoaded();
+
+            _renderer3DServices.RegisterRoofRegistry(
+                new ClassicUO.Renderer.Renderer3D.FileRoofRegistryStorage());
+            _renderer3DServices.RoofRegistry.EnsureLoaded();
+
+            _renderer3DServices.RegisterMousePick(
+                new ClassicUO.Renderer.Renderer3D.FileMousePickServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyRenderCameraSource());
+
+            _renderer3DServices.RegisterWallNeighbor(
+                new ClassicUO.Renderer.Renderer3D.FileWallNeighborClassifierConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyWallNeighborSource());
+
+            _renderer3DServices.RegisterMultiOrientation(
+                new ClassicUO.Renderer.Renderer3D.FileMultiOrientationStorage());
+            _renderer3DServices.MultiOrientation.EnsureLoaded();
+
+            _renderer3DServices.RegisterParticle(
+                new ClassicUO.Renderer.Renderer3D.FileParticleServiceConfigStorage().Load().Config);
+
+            _renderer3DServices.RegisterCameraMode(
+                new ClassicUO.Renderer.Renderer3D.LegacyCameraModeBridge());
+
+            _renderer3DServices.RegisterCameraState(
+                new ClassicUO.Renderer.Renderer3D.LegacyCameraStateBridge());
+
+            _renderer3DServices.RegisterEnvironment(
+                new ClassicUO.Renderer.Renderer3D.LegacyEnvironmentBridge());
+
+            _renderer3DServices.RegisterGroundEffect(
+                new ClassicUO.Renderer.Renderer3D.LegacyGroundEffectBridge());
+
+            _renderer3DServices.RegisterFoliageSeason(
+                new ClassicUO.Renderer.Renderer3D.LegacyFoliageSeasonBridge());
+
+            _renderer3DServices.RegisterRenderQuality(
+                new ClassicUO.Renderer.Renderer3D.LegacyRenderQualityBridge());
+
+            _renderer3DServices.RegisterRenderDiagnostics(
+                new ClassicUO.Renderer.Renderer3D.LegacyRenderDiagnosticsBridge());
+
+            _renderer3DServices.RegisterStatic3DConfig(
+                new ClassicUO.Renderer.Renderer3D.LegacyStatic3DConfigBridge());
+
+            _renderer3DServices.RegisterStatic3DDiagnostics(
+                new ClassicUO.Renderer.Renderer3D.LegacyStatic3DDiagnosticsBridge());
+
+            _renderer3DServices.RegisterMulti3DConfig(
+                new ClassicUO.Renderer.Renderer3D.LegacyMulti3DConfigBridge());
+
+            _renderer3DServices.RegisterMulti3DDiagnostics(
+                new ClassicUO.Renderer.Renderer3D.LegacyMulti3DDiagnosticsBridge());
+
+            _renderer3DServices.RegisterFoliage3DConfig(
+                new ClassicUO.Renderer.Renderer3D.LegacyFoliage3DConfigBridge());
+
+            _renderer3DServices.RegisterCameraInput(
+                new ClassicUO.Renderer.Renderer3D.LegacyCameraInputBridge());
+
+            _renderer3DServices.RegisterMovementInput(
+                new ClassicUO.Renderer.Renderer3D.LegacyMovementInputBridge());
+
+            _renderer3DServices.RegisterLegacyRendererDemo(
+                new ClassicUO.Renderer.Renderer3D.LegacyRendererDemoBridge());
+
+            _renderer3DServices.RegisterPlayer3D(
+                new ClassicUO.Renderer.Renderer3D.LegacyPlayer3DBridge());
+
+            _renderer3DServices.RegisterMobileRT3D(
+                new ClassicUO.Renderer.Renderer3D.LegacyMobileRT3DBridge());
+
+            // Namespace differs from siblings (ClassicUO.Renderer.Production vs
+            // ClassicUO.Renderer.Renderer3D) on purpose: the domain RenderMode enum
+            // shares its name with a legacy RenderMode, and aliased types cannot
+            // satisfy interface contracts. See migration-playbook entry 40.
+            _renderer3DServices.RegisterRenderMode(
+                new ClassicUO.Renderer.Production.LegacyRenderModeBridge());
+
+            _renderer3DServices.RegisterGroundOverlay(
+                new ClassicUO.Renderer.Renderer3D.LegacyGroundOverlayBridge());
+
+            // ADR-012 Phase 4 pilot — weather → ground overlay mapping loaded from
+            // Data/renderer3d/weather-ground-overlay.json. EnsureLoaded is eager so
+            // a missing/malformed config surfaces at startup, not at first weather change.
+            _renderer3DServices.RegisterWeatherGroundOverlayMap(
+                new ClassicUO.Renderer.Renderer3D.FileWeatherGroundOverlayMapStorage());
+            _renderer3DServices.WeatherGroundOverlayMap.EnsureLoaded();
+
+            _renderer3DServices.RegisterAtmosphere();
+            _renderer3DServices.RegisterTerrainMeshCache();
+            _renderer3DServices.RegisterTerrainRenderResources();
+
+            _renderer3DServices.RegisterLeafFall(
+                new ClassicUO.Renderer.Renderer3D.FileLeafFallServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyLeafSpawnSource(),
+                new ClassicUO.Renderer.Renderer3D.LegacyLeafTextureProvider());
+
+            _renderer3DServices.RegisterAmbientMotes(
+                new ClassicUO.Renderer.Renderer3D.FileAmbientMotesServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyParticleSpawner());
+
+            _renderer3DServices.RegisterFire(
+                new ClassicUO.Renderer.Renderer3D.FileFireServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyParticleSpawner());
+
+            _renderer3DServices.RegisterExplosion(
+                new ClassicUO.Renderer.Renderer3D.FileExplosionServiceConfigStorage().Load().Config);
+
+            _renderer3DServices.RegisterNukeShow(
+                new ClassicUO.Renderer.Renderer3D.FileNukeShowServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyParticleSpawner(),
+                sharedAudioLibrary,
+                new ClassicUO.Renderer.Renderer3D.LegacyUOWorldSoundPlayer());
+
+            _renderer3DServices.RegisterFireworks(
+                new ClassicUO.Renderer.Renderer3D.FileFireworksServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyParticleSpawner(),
+                new ClassicUO.Renderer.Renderer3D.LegacyParticleStringEmitter());
+
+            _renderer3DServices.RegisterBuffParticles(
+                new ClassicUO.Renderer.Renderer3D.FileBuffParticleServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyParticleSpawner(),
+                new ClassicUO.Renderer.Renderer3D.LegacyActiveBuffSource(),
+                new ClassicUO.Renderer.Renderer3D.LegacyRenderModeGate());
+
+            _renderer3DServices.RegisterMobileOutfit(
+                new ClassicUO.Renderer.Renderer3D.FileMobileOutfitServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyOutfitSlotProvider());
+
+            _renderer3DServices.RegisterMobileAnim(
+                new ClassicUO.Renderer.Renderer3D.FileMobileAnimServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyAnimatedModel());
+
+            _renderer3DServices.RegisterFootstepAudio(
+                new ClassicUO.Renderer.Renderer3D.FileFootstepAudioServiceConfigStorage().Load().Config,
+                new ClassicUO.Renderer.Renderer3D.LegacyFootstepAudioPlayer());
+
+            // Wind→weather bridge (transitional). Forwards each WindUpdatedEvent into the
+            // legacy Weather3DSystem.WindX/Z fields so weather particles continue to drift
+            // with the wind while Weather3D is still a static singleton. Phase 2 deletes
+            // this bridge when Weather3DSystem becomes a service that subscribes directly.
+            _renderer3DServices.EventBus.Subscribe<WindUpdatedEvent>(evt =>
+            {
+                if (!windConfig.LinkToWeather) return;
+                ClassicUO.Renderer.Renderer3D.Weather3DSystem.WindX = evt.VectorXZ.X * windConfig.WeatherParticleAdvection;
+                ClassicUO.Renderer.Renderer3D.Weather3DSystem.WindZ = evt.VectorXZ.Y * windConfig.WeatherParticleAdvection;
+            });
+
+            // Phase 3 (ADR-012 §7) — register the seven canonical render passes.
+            // Session 64 switchover: World3DRenderer.Draw now invokes Pipeline.Execute
+            // for Terrain / GroundOverlay / StaticGeometry / Mobile / Atmosphere. SkyPass
+            // and OverlayPass are intentional no-op placeholders (no content to host yet).
+            _renderer3DServices.RegisterPass(new ClassicUO.Renderer.Passes.SkyPass());
+            _renderer3DServices.RegisterPass(
+                new ClassicUO.Renderer.Passes.TerrainPass(
+                    _renderer3DServices.TerrainMeshCache,
+                    _renderer3DServices.TerrainRenderResources,
+                    _renderer3DServices.RenderQuality,
+                    _renderer3DServices.Environment));
+            _renderer3DServices.RegisterPass(
+                new ClassicUO.Renderer.Passes.GroundOverlayPass(
+                    _renderer3DServices.TerrainMeshCache,
+                    _renderer3DServices.TerrainRenderResources,
+                    _renderer3DServices.WeatherGroundOverlayMap,
+                    _renderer3DServices.RenderQuality));
+            _renderer3DServices.RegisterPass(
+                new ClassicUO.Renderer.Passes.StaticGeometryPass(_renderer3DServices.RenderQuality));
+            _renderer3DServices.RegisterPass(
+                new ClassicUO.Renderer.Passes.MobilePass(_renderer3DServices.RenderQuality));
+            _renderer3DServices.RegisterPass(
+                new ClassicUO.Renderer.Passes.AtmospherePass(_renderer3DServices.Atmosphere));
+            _renderer3DServices.RegisterPass(new ClassicUO.Renderer.Passes.OverlayPass());
+
+            _renderer3DServices.Freeze();
+            Renderer3DHost.Bind(_renderer3DServices);
 
             Client.Game.Window.AllowUserResizing = true;
 
@@ -277,6 +524,15 @@ namespace ClassicUO.Game.Scenes
             {
                 return;
             }
+
+            // Tear down renderer3D services. Unbind first so any straggler access during
+            // teardown sees a clean "not bound" state rather than a partially-disposed
+            // container. The DisposableRegistry inside the container disposes GPU
+            // resources (BasicEffect, RasterizerState, custom HLSL effects) in reverse
+            // registration order — closes review finding #5.
+            Renderer3DHost.Unbind();
+            _renderer3DServices?.Dispose();
+            _renderer3DServices = null;
 
             ProfileManager.CurrentProfile.GameWindowPosition = new Point(
                 Camera.Bounds.X,
@@ -715,9 +971,45 @@ namespace ClassicUO.Game.Scenes
 
         public override void Update()
         {
+            // Drive the renderer3D service container's per-frame tick. Reads delta from the
+            // host engine's authoritative Time.Delta — this is the single source of truth
+            // for renderer timing per ADR-012 §2 (closes review finding #2). Subsystems
+            // implementing IFrameService are ticked from inside this call; they read the
+            // FrameClock instead of any direct clock API.
+            _renderer3DServices?.Tick(Time.Delta);
+
             Profile currentProfile = ProfileManager.CurrentProfile;
 
-            SelectedObject.TranslatedMousePositionByViewport = Camera.MouseToWorldPosition();
+            // 3DCUO PROTOTYPE — when a 3D perspective camera is active, use a real
+            // raycast against the player's ground plane instead of the legacy iso
+            // unprojection. Without this, mouse picking is only correct when the
+            // camera happens to sit at the iso angle (~45°/30°).
+            bool picked3D = false;
+            if (!Renderer.Renderer3D.World3DRenderer.UseIsoProjection
+                && Renderer.Renderer3D.CameraModeController.CurrentMode != Renderer.Renderer3D.CameraModeController.Mode.Off
+                && _world.Player != null)
+            {
+                var b = Camera.Bounds;
+                if (Renderer.Renderer3D.MousePicker3D.TryPickGroundTile(
+                    Client.Game.GraphicsDevice,
+                    b.X, b.Y, b.Width, b.Height,
+                    Mouse.Position.X, Mouse.Position.Y,
+                    _world.Player.Z,
+                    out int tx, out int ty, out _))
+                {
+                    SelectedObject.TranslatedMousePositionByViewport = new Point(tx, ty);
+                    picked3D = true;
+                }
+            }
+            if (!picked3D)
+            {
+                SelectedObject.TranslatedMousePositionByViewport = Camera.MouseToWorldPosition();
+            }
+
+            // 3DCUO PROTOTYPE — middle-mouse drag rotates the perspective 3D camera.
+            Renderer.Renderer3D.CameraInputController.Update();
+            // 3DCUO PROTOTYPE — held WASD / arrows drive PlayerMobile.Walk camera-relatively.
+            Renderer.Renderer3D.WasdMovementController.Update(_world);
 
             base.Update();
 
@@ -750,6 +1042,10 @@ namespace ClassicUO.Game.Scenes
             }
 
             _world.Update();
+            // 3DCUO PROTOTYPE — both no-op when idle; cheap to call unconditionally.
+            Managers.PathRecorderManager.Tick(_world);
+            Managers.PathReplayManager.Tick(_world);
+            Renderer.Renderer3D.TreeDefoliationStagger.Tick();
             _animatedStaticsManager.Process();
             _world.BoatMovingManager.Update();
             _world.Player.Pathfinder.ProcessAutoWalk();
@@ -952,7 +1248,46 @@ namespace ClassicUO.Game.Scenes
 
         private void DrawWorld(UltimaBatcher2D batcher, ref Matrix matrix, RenderTargets renderTargets)
         {
+            // 3DCUO PROTOTYPE — RT'ed Mobiles mode: render per-mobile 3D RTs
+            // BEFORE WorldRenderTarget is bound. Mid-batch RT swaps cause
+            // already-committed chunk-mesh pixels (land, multis drawn via
+            // DrawDirectIndexed) to be discarded when WorldRenderTarget is
+            // rebound on RenderTargetUsage.DiscardContents — pre-rendering
+            // here avoids that path entirely.
+            Renderer.Renderer3D.MobileRT3DRenderer.RenderFrame(_world, batcher.GraphicsDevice);
+
             batcher.GraphicsDevice.SetRenderTarget(renderTargets.WorldRenderTarget);
+            // 3DCUO PROTOTYPE — when the 2D world is suppressed, clear the render
+            // target ourselves to a solid sky color so the perspective camera
+            // doesn't show the UI background (purple) wherever no 3D geometry
+            // landed. With 2D enabled, the sprite batcher fills the target so
+            // a clear here would be wasted bandwidth.
+            if (Renderer.Renderer3D.World3DRenderer.Disable2DWorld
+                && !Renderer.Renderer3D.MobileRT3DRenderer.Enabled)
+            {
+                // Clear COLOR + DEPTH so the 3D pass starts on a clean depth buffer.
+                // Without the depth clear, stale per-pixel z values let the player
+                // model draw on top of walls/statics regardless of state.
+                batcher.GraphicsDevice.Clear(
+                    ClearOptions.Target | ClearOptions.DepthBuffer,
+                    Renderer.Renderer3D.World3DRenderer.GetEffectiveClearColor(),
+                    1.0f,
+                    0);
+            }
+            else if (!Renderer.Renderer3D.MobileRT3DRenderer.Enabled
+                  && (Renderer.Renderer3D.Multi3DRenderer.Enabled
+                  || Renderer.Renderer3D.Static3DRenderer.Enabled
+                  || Renderer.Renderer3D.Player3DRenderer.Enabled))
+            {
+                // 2D world is on but a 3D pass will run on top. Clear ONLY the depth
+                // buffer (the 2D batcher will fill color) so the 3D pass doesn't
+                // depth-test against leftover sprite-batch z values.
+                batcher.GraphicsDevice.Clear(
+                    ClearOptions.DepthBuffer,
+                    Color.Transparent,
+                    1.0f,
+                    0);
+            }
             SelectedObject.Object = null;
             Profiler.EnterContext(Profiler.ProfilerContext.RENDER_FRAME_WORLD_PREPARE);
             FillGameObjectList();
@@ -1016,38 +1351,182 @@ namespace ClassicUO.Game.Scenes
             // https://shawnhargreaves.com/blog/depth-sorting-alpha-blended-objects.html
             batcher.SetStencil(DepthStencilState.Default);
 
-            RenderedObjectsCount = _renderLists.DrawRenderLists(
-                batcher,
-                _maxGroundZ,
-                _visibleChunks,
-                _offset.X,
-                _offset.Y
-            );
-
-
-            if (
-                _multi != null
-                && _world.TargetManager.IsTargeting
-                && _world.TargetManager.TargetingState == CursorTarget.MultiPlacement
-            )
+            // 3DCUO PROTOTYPE — master toggle: when on, suppress all 2D world
+            // sprite draws so the 3D pass renders to a clean target.
+            // RT'ed Mobiles mode forces 2D world ON regardless of Disable2DWorld.
+            if (!Renderer.Renderer3D.World3DRenderer.Disable2DWorld
+                || Renderer.Renderer3D.MobileRT3DRenderer.Enabled)
             {
-                _multi.Draw(
+                RenderedObjectsCount = _renderLists.DrawRenderLists(
                     batcher,
-                    _multi.RealScreenPosition.X,
-                    _multi.RealScreenPosition.Y,
-                    _multi.CalculateDepthZ()
+                    _maxGroundZ,
+                    _visibleChunks,
+                    _offset.X,
+                    _offset.Y
                 );
+
+
+                if (
+                    _multi != null
+                    && _world.TargetManager.IsTargeting
+                    && _world.TargetManager.TargetingState == CursorTarget.MultiPlacement
+                )
+                {
+                    _multi.Draw(
+                        batcher,
+                        _multi.RealScreenPosition.X,
+                        _multi.RealScreenPosition.Y,
+                        _multi.CalculateDepthZ()
+                    );
+                }
+
+                // draw weather
+                _world.Weather.Draw(batcher, 0, 0, MAX_LAYER_DEPTH - 1);
+
+                DrawSelection(batcher, MAX_LAYER_DEPTH);
             }
-
-            // draw weather
-            _world.Weather.Draw(batcher, 0, 0, MAX_LAYER_DEPTH - 1);
-
-            DrawSelection(batcher, MAX_LAYER_DEPTH);
+            else
+            {
+                RenderedObjectsCount = 0;
+            }
 
             batcher.SetSampler(null);
             batcher.SetStencil(null);
             batcher.SetCircleOfTransparencyRadius(0f);
             batcher.End();
+
+            // 3DCUO PROTOTYPE — auto-open the debug tuning gump on first frame.
+            if (!_debug3DGumpOpened && _world.Player != null)
+            {
+                _debug3DGumpOpened = true;
+
+                // Apply the persisted render mode (or Classic2D for fresh
+                // profiles) before any 3D pass runs. HydrateFromProfile reads
+                // Profile.RenderMode3D / Use3DPlayerInClassic2D and runs the
+                // same legacy-flag mirroring that Initialize() would, so the
+                // 3D pipeline is wired correctly on the very first frame.
+                ClassicUO.Renderer.Renderer3D.RenderModeController.HydrateFromProfile();
+
+                if (UI.Gumps.Render3DLauncherGump.Instance == null)
+                {
+                    var g = new UI.Gumps.Render3DLauncherGump(_world);
+                    UI.Gumps.Render3DLauncherGump.Instance = g;
+                    Managers.UIManager.Add(g);
+                }
+            }
+
+            // 3DCUO PROTOTYPE — 3D world hooks. Run after the 2D batcher flushes,
+            // while WorldRenderTarget is still bound. Each pass is independently
+            // gated by its own Enabled flag.
+            if (_world.Player != null)
+            {
+                var p = _world.Player;
+
+                // Phase 2: heightmap ground mesh (real 3D camera).
+                if (World3DRenderer.Enabled)
+                {
+                    // Sub-tile interpolation. The player's iso-pixel Offset has X, Y, Z
+                    // components encoding sub-tile motion; invert the iso transform to
+                    // recover fractional UO tile coordinates so the 3D camera tracks
+                    // smoothly between tiles instead of snapping.
+                    float dx = (p.Offset.X + p.Offset.Y) / 44f;
+                    float dy = (p.Offset.Y - p.Offset.X) / 44f;
+                    float dz = p.Offset.Z / 4f;
+
+                    // Sync 3D camera zoom with the 2D camera. ClassicUO's Camera.Zoom
+                    // is INVERTED from typical "bigger = zoomed in" — internally it
+                    // applies lerpZoom = 1/Zoom, so smaller Camera.Zoom = bigger sprites.
+                    // My Camera3D uses the natural convention (bigger = smaller frustum
+                    // = zoomed in). Invert so Ctrl+wheel-up zooms in BOTH worlds.
+                    World3DRenderer.Camera.Zoom = Camera.Zoom > 0.01f ? 1f / Camera.Zoom : 1f;
+
+                    World3DRenderer.Draw(
+                        batcher.GraphicsDevice,
+                        _world,
+                        _visibleChunks,
+                        p.X + dx, p.Y + dy, p.Z + dz,
+                        (int)(p.Direction & Data.Direction.Mask),
+                        Camera.Bounds.Width,
+                        Camera.Bounds.Height
+                    );
+
+                    // Migration smoke test: render a baked .umesh above the player's
+                    // head to validate the SharpGLTF-free runtime loader (Option B).
+                    HeadMeshRenderer.Draw(
+                        batcher.GraphicsDevice,
+                        p.X + dx, p.Y + dy, p.Z + dz,
+                        Camera.Bounds.Width,
+                        Camera.Bounds.Height
+                    );
+                }
+
+                // ===== 3DCUO PROTOTYPE — Particle3D pass =====
+                // Independent of RenderMode: particles render in every mode so the
+                // fireworks show is visible whether the world is in 2D-only,
+                // MobilesIn3D, or Full3D. Anchors to the player's foot in world units.
+                {
+                    float dxP = (p.Offset.X + p.Offset.Y) / 44f;
+                    float dyP = (p.Offset.Y - p.Offset.X) / 44f;
+                    float dzP = p.Offset.Z / 4f;
+                    var anchor = new Microsoft.Xna.Framework.Vector3(
+                        (p.X + dxP) * ClassicUO.Renderer.Renderer3D.LandMesh3D.TILE,
+                        (p.Z + dzP) * ClassicUO.Renderer.Renderer3D.LandMesh3D.Z_SCALE,
+                        (p.Y + dyP) * ClassicUO.Renderer.Renderer3D.LandMesh3D.TILE
+                    );
+                    ClassicUO.Renderer.Renderer3D.FireworksShow.Configure(anchor);
+                    ClassicUO.Renderer.Renderer3D.NukeShow.Configure(anchor);
+                    ClassicUO.Renderer.Renderer3D.Weather3DSystem.Configure(anchor);
+                    ClassicUO.Renderer.Renderer3D.LeafFallSystem.Configure(anchor);
+                    ClassicUO.Renderer.Renderer3D.BuffParticleEffects.Configure(anchor);
+                    ClassicUO.Renderer.Renderer3D.AmbientMotes3D.Configure(anchor);
+                    ClassicUO.Renderer.Renderer3D.AmbientMotes3D.Tick(1f / 60f);
+                    // Player buffs are checked every frame; emission rate is
+                    // governed by per-buff timers inside BuffParticleEffects.
+                    // Step uses a 16 ms estimate — frame-pacing variance is
+                    // tolerated since timers are continuous.
+                    ClassicUO.Renderer.Renderer3D.BuffParticleEffects.Tick(_world.Player, 1f / 60f);
+                    ClassicUO.Renderer.Renderer3D.Particle3DSystem.Tick();
+
+                    // Build view+proj. Reuse World3DRenderer.Camera (already
+                    // synced to the 2D camera's zoom upstream when World3D is on,
+                    // or we set its target here for the iso path).
+                    var cam = ClassicUO.Renderer.Renderer3D.World3DRenderer.Camera;
+                    cam.Target = anchor;
+                    cam.OrthoWidthPixels = Camera.Bounds.Width;
+                    cam.Zoom = Camera.Zoom > 0.01f ? 1f / Camera.Zoom : 1f;
+
+                    Microsoft.Xna.Framework.Matrix viewP, projP;
+                    if (ClassicUO.Renderer.Renderer3D.World3DRenderer.UseIsoProjection
+                        || !ClassicUO.Renderer.Renderer3D.World3DRenderer.Enabled)
+                    {
+                        viewP = Microsoft.Xna.Framework.Matrix.Identity;
+                        projP = cam.IsoViewProjection(Camera.Bounds.Width, Camera.Bounds.Height);
+                    }
+                    else
+                    {
+                        float aspectP = (float)Camera.Bounds.Width / System.Math.Max(1, Camera.Bounds.Height);
+                        viewP = cam.View;
+                        projP = cam.Projection(aspectP);
+                    }
+                    ClassicUO.Renderer.Renderer3D.Particle3DSystem.Draw(batcher.GraphicsDevice, viewP, projP);
+                    ClassicUO.Renderer.Renderer3D.LeafFallSystem.Draw(batcher.GraphicsDevice, viewP, projP);
+                }
+
+                // Phase 1: test cube (iso-projected, no real 3D camera).
+                if (Test3DRenderer.Enabled && !World3DRenderer.HideTestCube)
+                {
+                    int px = p.RealScreenPosition.X + (int)p.Offset.X;
+                    int py = p.RealScreenPosition.Y + (int)(p.Offset.Y - p.Offset.Z);
+                    Test3DRenderer.Draw(
+                        batcher.GraphicsDevice,
+                        px,
+                        py,
+                        Camera.Bounds.Width,
+                        Camera.Bounds.Height,
+                        matrix
+                    );
+                }
+            }
 
             int flushes = batcher.FlushesDone;
             int switches = batcher.TextureSwitches;
