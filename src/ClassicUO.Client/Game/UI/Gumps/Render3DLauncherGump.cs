@@ -51,6 +51,7 @@ namespace ClassicUO.Game.UI.Gumps
             public const int BuffEffects     = 110;
             public const int Mobile3D        = 111;
             public const int Npc3D           = 119;
+            public const int VfxTest         = 120;
             public const int Crowd           = 112;
             public const int Trees           = 113;
             public const int TreeSeasons     = 114;
@@ -113,6 +114,7 @@ namespace ClassicUO.Game.UI.Gumps
             y = AddButton("Buff Particle FX...", BtnId.BuffEffects,    contentX, innerW, y);
             y = AddButton("3D Mobile (Anim/RT)...", BtnId.Mobile3D,    contentX, innerW, y);
             y = AddButton("3D NPCs (toggles + inspector)...", BtnId.Npc3D, contentX, innerW, y);
+            y = AddButton("VFX Test Scene...",   BtnId.VfxTest,        contentX, innerW, y);
             y = AddButton("Crowd Density...",    BtnId.Crowd,          contentX, innerW, y);
             y = AddButton("3D Trees...",         BtnId.Trees,          contentX, innerW, y);
             y = AddButton("Tree Seasons / Snow...", BtnId.TreeSeasons, contentX, innerW, y);
@@ -172,6 +174,7 @@ namespace ClassicUO.Game.UI.Gumps
                 case BtnId.BuffEffects:     OpenBuffEffects();                                         break;
                 case BtnId.Mobile3D:        Open<MobileRender3DGump>(w => new MobileRender3DGump(w, _services.Player3D, _services.RenderMode));  break;
                 case BtnId.Npc3D:           Open<Npc3DDebugGump>(w      => new Npc3DDebugGump(w, _services.MobileOutfit, _services.MobileAnim, _services.RenderDiagnostics, _services.Player3D, _services.MobileRT3D, _services.RenderMode)); break;
+                case BtnId.VfxTest:         Open<VfxTestGump>(w         => new VfxTestGump(w, _services.Particle, _services.Fire, _services.Explosion, _services.BuffParticles, _services.NukeShow, _services.Fireworks)); break;
                 case BtnId.Crowd:           Open<CrowdGump>(w           => new CrowdGump(w));          break;
                 case BtnId.Trees:           Open<Trees3DSettingsGump>(w => new Trees3DSettingsGump(w, _services.Season, _services.TreeStaticRegistry, _services.Static3DConfig, _services.Static3DDiagnostics, _services.Foliage3DConfig)); break;
                 case BtnId.TreeSeasons:     Open<TreeSeasonsGump>(w     => new TreeSeasonsGump(w, _services.TreeSeason)); break;
